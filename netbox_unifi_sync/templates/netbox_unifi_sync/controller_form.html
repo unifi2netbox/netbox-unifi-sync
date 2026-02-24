@@ -8,6 +8,18 @@
   <div class="card-body">
     <form method="post">
       {% csrf_token %}
+      {% if form.errors %}
+      <div class="alert alert-danger">
+        <strong>Validation errors:</strong>
+        <ul class="mb-0">
+          {% for field, errors in form.errors.items %}
+            {% for err in errors %}
+              <li>{% if field == "__all__" %}general{% else %}{{ field }}{% endif %}: {{ err }}</li>
+            {% endfor %}
+          {% endfor %}
+        </ul>
+      </div>
+      {% endif %}
       {{ form.as_p }}
       <button type="submit" class="btn btn-primary">Save</button>
       <a href="{% url 'plugins:netbox_unifi_sync:controllers' %}" class="btn btn-outline-secondary">Cancel</a>

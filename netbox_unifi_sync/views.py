@@ -116,7 +116,12 @@ def controller_edit_view(request: HttpRequest, pk: int | None = None) -> HttpRes
             record_event(action=action, status="success", actor=request.user, target=obj.name, message=f"{obj.name} saved")
             messages.success(request, f"Controller '{obj.name}' saved")
             return redirect("plugins:netbox_unifi_sync:controllers")
-        messages.error(request, "Unable to save controller. Fix validation errors.")
+        error_items: list[str] = []
+        for field, field_errors in form.errors.items():
+            label = "general" if field == "__all__" else field
+            error_items.extend([f"{label}: {e}" for e in field_errors])
+        details = " | ".join(error_items) if error_items else "Fix validation errors."
+        messages.error(request, f"Unable to save controller. {details}")
 
     return render(request, "netbox_unifi_sync/controller_form.html", {"form": form, "controller": controller})
 

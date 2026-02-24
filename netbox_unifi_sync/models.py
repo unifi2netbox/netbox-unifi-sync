@@ -6,9 +6,6 @@ from django.db import models
 from django.urls import reverse
 from django.utils import timezone
 
-_SECRET_PREFIXES = ("env:", "file:")
-
-
 class AuthMode(models.TextChoices):
     API_KEY = "api_key", "API key"
     LOGIN = "login", "Login"
@@ -152,18 +149,18 @@ class UnifiController(models.Model):
 
     def clean(self):
         errors = {}
-        if self.auth_mode == AuthMode.API_KEY and not self.api_key_ref.strip():
-            errors["api_key_ref"] = "api_key_ref is required for auth_mode=api_key"
-        if self.auth_mode == AuthMode.LOGIN:
-            if not self.username_ref.strip():
-                errors["username_ref"] = "username_ref is required for auth_mode=login"
-            if not self.password_ref.strip():
-                errors["password_ref"] = "password_ref is required for auth_mode=login"
+        self.api_key_ref = (self.api_key_ref or "").strip()
+        self.username_ref = (self.username_ref or "").strip()
+        self.password_ref = (self.password_ref or "").strip()
+        self.mfa_secret_ref = (self.mfa_secret_ref or "").strip()
 
-        for field_name in ("api_key_ref", "username_ref", "password_ref", "mfa_secret_ref"):
-            value = str(getattr(self, field_name, "") or "").strip()
-            if value and not value.startswith(_SECRET_PREFIXES):
-                errors[field_name] = "Secret references must use env:VAR or file:/path patterns."
+        # Allow saving controller definitions before credentials are wired in.
+        # Runtime sync/test enforces auth requirements for the selected mode.
+        if self.auth_mode == AuthMode.LOGIN:
+            if self.username_ref and not self.password_ref:
+                errors["password_ref"] = "password_ref is required when username_ref is set for auth_mode=login"
+            if self.password_ref and not self.username_ref:
+                errors["username_ref"] = "username_ref is required when password_ref is set for auth_mode=login"
 
         if self.retry_backoff_base is not None and self.retry_backoff_base <= 0:
             errors["retry_backoff_base"] = "retry_backoff_base must be > 0"

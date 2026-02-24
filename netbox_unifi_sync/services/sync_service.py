@@ -19,7 +19,7 @@ from ..configuration import (
 from .auth import UnifiAuthSettings
 from .mapping import format_result_summary
 
-logger = logging.getLogger("netbox.plugins.unifi2netbox.sync")
+logger = logging.getLogger("netbox.plugins.netbox_unifi_sync.sync")
 
 
 class SyncConfigurationError(ValueError):
@@ -201,7 +201,8 @@ def execute_sync(
     if not str(resolve_secret_value(plugin_settings.get("netbox_token") or "")).strip():
         raise SyncConfigurationError(
             "Unable to resolve internal NetBox API token. "
-            "Create an API token for a privileged user or set PLUGINS_CONFIG['unifi2netbox']['netbox_token']."
+            "Create an API token for a privileged user or set "
+            "PLUGINS_CONFIG['netbox_unifi_sync']['netbox_token']."
         )
 
     validation_errors = validate_plugin_settings(plugin_settings)

@@ -1,6 +1,6 @@
 # NetBox Docker Test Setup (`netbox_unifi_sync`)
 
-This folder contains a reproducible `netbox-docker` setup for local plugin testing.
+This folder contains a reproducible `netbox-docker` setup for local plugin validation.
 
 ## 1) Clone repositories
 
@@ -17,13 +17,23 @@ cp deploy/netbox-docker/docker-compose.override.yml .netbox-docker/docker-compos
 cp deploy/netbox-docker/configuration/plugins.py .netbox-docker/configuration/plugins.py
 ```
 
-`netbox-docker` loads `.netbox-docker/configuration/plugins.py` from
-`/opt/netbox/netbox/netbox/configuration.py` at runtime.
+`plugins.py` is imported by NetBox runtime and enables `netbox_unifi_sync`.
 
-## 3) Configure environment variables
+## 3) Configure plugin path env
 
 ```bash
 cp deploy/netbox-docker/env.netbox-plugin.example .netbox-docker/.env.plugin
+```
+
+Edit `.netbox-docker/.env.plugin` and set absolute path:
+
+```bash
+UNIFI2NETBOX_PLUGIN_PATH=/absolute/path/to/unifi2netbox
+```
+
+Load vars into `netbox-docker` env:
+
+```bash
 set -a
 source .netbox-docker/.env.plugin
 set +a
@@ -39,22 +49,37 @@ docker compose up -d
 docker compose ps
 ```
 
-## 5) Create superuser
+## 5) Run migrations
+
+```bash
+docker compose exec netbox /opt/netbox/netbox/manage.py migrate
+```
+
+## 6) Create superuser
 
 ```bash
 docker compose exec netbox /opt/netbox/netbox/manage.py createsuperuser
 ```
 
-## 6) Test plugin
+## 7) Validate plugin
 
-1. Open `http://localhost:8000`
-2. Login as superuser
-3. Go to `Plugins -> NetBox UniFi Sync -> Settings`
-4. Configure global settings + controllers
-5. Run dry-run from dashboard
+- Open `http://localhost:8000`
+- Login as superuser
+- Open `Plugins -> UniFi Sync -> Settings`
+- Add required settings + controller
+- Run dry-run, then full sync
 
-## 7) Optional CLI test
+CLI validation:
 
 ```bash
 docker compose exec netbox /opt/netbox/netbox/manage.py netbox_unifi_sync_run --dry-run --json
+```
+
+## Notes
+
+- Both `netbox` and `netbox-worker` install plugin via editable mode at container startup.
+- If plugin code changes, restart both services:
+
+```bash
+docker compose restart netbox netbox-worker
 ```

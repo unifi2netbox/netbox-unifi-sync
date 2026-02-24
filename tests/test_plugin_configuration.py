@@ -1,6 +1,6 @@
 import os
 
-from netbox_unifi2netbox.configuration import (
+from netbox_unifi_sync.configuration import (
     get_plugin_settings,
     plugin_settings_to_env,
     resolve_secret_value,

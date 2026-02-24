@@ -1,5 +1,0 @@
-main
-netbox_unifi2netbox
-sync
-unifi
-unifi2netbox

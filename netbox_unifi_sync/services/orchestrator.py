@@ -5,7 +5,7 @@ from collections import defaultdict
 from typing import Any, Iterable
 
 from django.utils import timezone
-from netbox_unifi2netbox.services.sync_service import execute_sync as legacy_execute_sync
+from netbox_unifi_sync.services.sync_service import execute_sync as legacy_execute_sync
 from unifi.unifi import Unifi
 
 from ..models import (

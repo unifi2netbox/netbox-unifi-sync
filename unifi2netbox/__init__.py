@@ -1,10 +1,10 @@
 """
 Compatibility plugin entrypoint.
 
-Allows NetBox `PLUGINS = ["unifi2netbox"]` while the Django app label and
-migration module remain `netbox_unifi2netbox`.
+Allows NetBox `PLUGINS = ["unifi2netbox"]` while the implementation
+lives in `netbox_unifi_sync`.
 """
 
-from netbox_unifi2netbox import Unifi2NetBoxPluginConfig, config
+from netbox_unifi_sync import NetBoxUnifiSyncConfig, config
 
-__all__ = ["Unifi2NetBoxPluginConfig", "config"]
+__all__ = ["NetBoxUnifiSyncConfig", "config"]

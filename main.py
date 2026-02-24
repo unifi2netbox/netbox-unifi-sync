@@ -1453,7 +1453,7 @@ def _load_community_specs():
     json_candidates = [
         custom_specs_path,
         os.path.join(base_dir, "data", "ubiquiti_device_specs.json"),
-        os.path.join(base_dir, "netbox_unifi2netbox", "data", "ubiquiti_device_specs.json"),
+        os.path.join(base_dir, "netbox_unifi_sync", "data", "ubiquiti_device_specs.json"),
     ]
     json_path = next((path for path in json_candidates if path and os.path.exists(path)), None)
     if not json_path:

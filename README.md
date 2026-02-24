@@ -1,83 +1,109 @@
 # netbox_unifi_sync
 
-`netbox_unifi_sync` is a NetBox 4.2+ plugin that runs UniFi -> NetBox sync jobs **inside NetBox** using background workers.
+`netbox_unifi_sync` is a NetBox 4.2+ plugin for running UniFi -> NetBox sync jobs inside NetBox workers.
 
-## Highlights
+## What it does
 
-- Plugin name: `netbox_unifi_sync`
-- No external sync service required
-- Controller inventory sync (devices/interfaces/VLAN/WLAN/uplinks/IP data)
-- Optional cleanup flow
-- Optional DHCP writeback feature flag
-- Job-based execution (manual + scheduled)
-- Database-backed plugin settings (single source of truth)
+- Syncs UniFi devices into NetBox (devices, interfaces, VLANs, prefixes, WLANs, uplink relations, IP assignments)
+- Creates DHCP scopes as NetBox IP Ranges
+- Supports UniFi auth via API key or login (username/password + optional MFA)
+- Runs as NetBox jobs (manual run + scheduler job)
+- Stores operational settings in plugin models (UI), with optional defaults from `PLUGINS_CONFIG`
 
-## Install
+## Canonical plugin name
 
-```bash
-pip install .
-# or editable for development
-pip install -e .
-```
-
-## Enable plugin
+Use:
 
 ```python
 PLUGINS = ["netbox_unifi_sync"]
+```
+
+Compatibility alias is still supported:
+
+```python
+PLUGINS = ["unifi2netbox"]
+```
+
+## Install on a NetBox server (venv)
+
+1. Clone repository:
+
+```bash
+git clone https://github.com/patricklind/unifi2netbox.git
+cd unifi2netbox
+```
+
+2. Install plugin in NetBox venv:
+
+```bash
+/opt/netbox/venv/bin/pip install -e /path/to/unifi2netbox
+```
+
+3. Enable plugin in NetBox `configuration.py`:
+
+```python
+PLUGINS = ["netbox_unifi_sync"]
+
 PLUGINS_CONFIG = {
-    "netbox_unifi_sync": {}
+    "netbox_unifi_sync": {
+        "unifi_url": "https://unifi.local/proxy/network/integration/v1",
+        "auth_mode": "api_key",  # api_key | login
+        "api_key": "env:UNIFI_API_KEY",
+        "username": "",
+        "password": "",
+        "verify_ssl": True,
+        "default_site": "",
+        "dry_run": False,
+    }
 }
 ```
 
-## First-time setup in UI
+4. Run migrations:
 
-1. Open `Plugins -> NetBox UniFi Sync -> Settings`
-2. Set required global settings (`tenant_name`, `netbox_roles`, runtime/security values)
-3. Add one or more controllers in `Controllers`
-4. Use secret references (`env:VAR_NAME` or `file:/path`) for credentials
-5. Run a `Dry run` from the dashboard
-
-## Asset tag parsing
-
-Asset-tag extraction is configurable in **Settings**:
-
-- `asset_tag_enabled`: enable/disable extraction
-- `asset_tag_patterns_json`: JSON list of regex patterns (first match wins)
-- `asset_tag_uppercase`: normalize extracted value to uppercase
-
-Example patterns:
-
-```json
-[
-  "[-_]?(A?ID\\d+)$",
-  "ASSET[: -]?(\\d+)$",
-  "TAG-([A-Z0-9]+)$"
-]
+```bash
+/opt/netbox/venv/bin/python /opt/netbox/netbox/manage.py migrate
 ```
 
-## Authentication modes
+5. Restart NetBox services (web + worker).
 
-- `api_key`: uses UniFi Integration API header auth
-- `login`: uses username/password (+ optional MFA secret)
+## Install with netbox-docker
 
-## Management command
+See detailed instructions in:
+
+- [deploy/netbox-docker/README.md](deploy/netbox-docker/README.md)
+- [docs/server-install.md](docs/server-install.md)
+
+## First-time setup in UI
+
+1. Open `Plugins -> UniFi Sync -> Settings`
+2. Set required global settings (`tenant_name`, role mappings, defaults)
+3. Add one or more controllers in `Controllers`
+4. Add site mappings in `Site mappings` (required if UniFi site names differ from NetBox site names)
+5. Run a dry-run from dashboard, then run full sync
+
+## Run commands
 
 ```bash
 python manage.py netbox_unifi_sync_run --dry-run --json
 python manage.py netbox_unifi_sync_run --cleanup
 ```
 
-## Docker test
+## Authentication
 
-See [deploy/netbox-docker/README.md](deploy/netbox-docker/README.md).
+- `api_key`: Integration API header auth
+- `login`: username/password (+ optional MFA secret)
+
+Store credentials as secret references (`env:VAR` or `file:/path`) instead of plaintext.
+
+## Documentation
+
+- [Server install guide](docs/server-install.md)
+- [NetBox plugin mode](docs/netbox-plugin.md)
+- [Configuration details](docs/configuration.md)
+- [Troubleshooting](docs/troubleshooting.md)
 
 ## Security notes
 
-- Secrets should be provided as references (`env:` / `file:`), not plaintext
-- Error messages are sanitized before persistence
-- SSL verification is enabled by default
-- Timeouts and retry/backoff are configurable
-
-## Legacy packages
-
-This repository still contains legacy `unifi2netbox`/`netbox_unifi2netbox` modules for backward compatibility while migration to `netbox_unifi_sync` completes.
+- SSL verification defaults to `true`
+- Secrets are redacted in run history and audit events
+- Timeouts/retry/backoff are configurable

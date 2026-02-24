@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
-from netbox_unifi2netbox.configuration import resolve_secret_value
+from netbox_unifi_sync.configuration import resolve_secret_value
 
 
 @dataclass(frozen=True)

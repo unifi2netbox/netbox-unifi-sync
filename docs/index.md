@@ -1,19 +1,20 @@
 ---
-title: unifi2netbox
+title: netbox_unifi_sync
 ---
 
-# unifi2netbox
+# netbox_unifi_sync
 
-Production-focused synchronization from UniFi controllers to NetBox.
+Production-focused UniFi -> NetBox synchronization as an in-platform NetBox plugin.
 
 ## Documentation
 
+- [Server Install Guide](./server-install.html)
+- [NetBox Plugin Mode](./netbox-plugin.html)
 - [Configuration](./configuration.html)
 - [Architecture](./architecture.html)
 - [Troubleshooting](./troubleshooting.html)
 - [FAQ](./faq.html)
 - [Cleanup](./cleanup.html)
-- [NetBox Plugin](./netbox-plugin.html)
 - [Device Specs](./device-specs.html)
 - [QA Checklist](./qa-checklist.html)
 - [Bug Report](./bug-report.html)
@@ -21,5 +22,5 @@ Production-focused synchronization from UniFi controllers to NetBox.
 ## Notes
 
 - Primary sync direction is UniFi -> NetBox.
-- DHCP-to-static conversion can update device IP settings in UniFi for affected devices.
-- Local UniFi Integration API keys are supported; `unifi.ui.com` cloud API keys are not drop-in compatible.
+- DHCP-to-static conversion can update UniFi device IP settings when enabled.
+- Local UniFi Integration API keys are supported; `unifi.ui.com` cloud keys are not drop-in compatible.

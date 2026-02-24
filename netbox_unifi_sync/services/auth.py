@@ -8,7 +8,7 @@ from unifi.unifi import Unifi
 
 from ..configuration import resolve_secret_value
 
-logger = logging.getLogger("netbox.plugins.unifi2netbox.auth")
+logger = logging.getLogger("netbox.plugins.netbox_unifi_sync.auth")
 
 
 class UnifiAuthError(ValueError):

@@ -109,16 +109,41 @@
 
 ---
 
+### No Data Imported
+
+**Problem**: Sync job runs but few or no devices are created.
+
+**Solutions**:
+- Verify controller auth in `Controllers -> Test connection`
+- Confirm `tenant_name` and `netbox_roles` are configured in plugin `Settings`
+- Check `Site mappings` if UniFi site names differ from NetBox site names
+- Review run detail page for `No match found for Ubiquity site ... Skipping`
+
+---
+
+### DHCP Scopes Not Visible in IP Ranges
+
+**Problem**: Prefixes exist, but no IP Ranges appear in NetBox.
+
+**Solutions**:
+- Confirm DHCP is enabled on UniFi networks
+- Ensure `DHCP_AUTO_DISCOVER=true`
+- Ensure `SYNC_DHCP_RANGES=true`
+- Run a fresh sync after plugin upgrade/restart
+- Check run logs for `Created DHCP IP range ...`
+
+---
+
 ## Debug Logging
 
-Enable verbose logging for troubleshooting:
+Use NetBox worker logs and plugin run output:
 
 ```bash
 # Docker
-docker compose up  # -v flag is default in docker-compose.yml
+docker compose logs -f netbox-worker
 
-# Bare-metal
-python main.py -v
+# Direct plugin dry-run from NetBox runtime
+python manage.py netbox_unifi_sync_run --dry-run --json
 ```
 
 Debug output includes:
@@ -132,7 +157,7 @@ Debug output includes:
 
 ## Getting Help
 
-1. Check the logs with `-v` flag
+1. Check NetBox worker logs and plugin run output
 2. Review the [FAQ](faq.md)
 3. Open an issue with:
    - Error message (full traceback)

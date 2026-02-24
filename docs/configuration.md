@@ -1,19 +1,34 @@
 # Configuration Reference
 
-Runtime config is built from environment variables (`.env`) only.
+`netbox_unifi_sync` uses plugin models (UI) as primary runtime configuration.
+Internally, the sync engine still consumes environment-style keys; the plugin
+maps DB settings and `PLUGINS_CONFIG` values into those keys at runtime.
 
-## Required Settings
+Use this document as a reference for available runtime options and how they map
+to engine behavior.
+
+## Required Values (Plugin Runtime)
+
+Set these values in plugin UI (`Settings` + `Controllers`) or via `PLUGINS_CONFIG` defaults:
+
+- UniFi controller URL(s)
+- Auth mode and credentials
+- Import tenant name
+- NetBox role mapping
+
+## Runtime Key Reference
 
 | Variable | Required | Default in code | Notes |
 |---|---|---|---|
 | `UNIFI_URLS` | Yes | — | Comma-separated list or JSON array |
-| `NETBOX_URL` | Yes | — | NetBox base URL |
-| `NETBOX_TOKEN` | Yes | — | NetBox API token |
+| `NETBOX_URL` | No† | — | NetBox base URL |
+| `NETBOX_TOKEN` | No† | — | NetBox API token |
 | `NETBOX_IMPORT_TENANT` or `NETBOX_TENANT` | Yes | — | Existing tenant name (`NETBOX_IMPORT_TENANT` takes precedence) |
 | `UNIFI_API_KEY` | * | — | Preferred auth mode |
 | `UNIFI_USERNAME` + `UNIFI_PASSWORD` | * | — | Fallback auth mode |
 
-\* Provide either API key or username/password.
+† In plugin mode, `NETBOX_URL` and `NETBOX_TOKEN` are auto-resolved if omitted.  
+* Provide either API key or username/password.
 
 Note: `unifi.ui.com` cloud API keys are not equivalent to local UniFi Network Integration API keys.
 

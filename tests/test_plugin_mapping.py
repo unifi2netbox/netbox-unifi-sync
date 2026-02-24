@@ -1,4 +1,4 @@
-from netbox_unifi2netbox.services.mapping import merge_tags, resolve_site_name
+from netbox_unifi_sync.services.mapping import merge_tags, resolve_site_name
 
 
 def test_resolve_site_name_with_mapping():

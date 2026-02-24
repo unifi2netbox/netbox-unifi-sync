@@ -27,5 +27,5 @@ py-modules = ["main"]
 
 [tool.setuptools.packages.find]
 namespaces = false
-include = ["netbox_unifi_sync*", "netbox_unifi2netbox*", "unifi2netbox", "sync", "unifi"]
+include = ["netbox_unifi_sync*", "unifi2netbox", "sync", "unifi"]
 exclude = ["tests*", "docs*", "lxc*", "tools*", "deploy*"]

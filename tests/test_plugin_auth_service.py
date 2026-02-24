@@ -1,4 +1,4 @@
-from netbox_unifi2netbox.services.auth import UnifiAuthError, UnifiAuthSettings
+from netbox_unifi_sync.services.auth import UnifiAuthError, UnifiAuthSettings
 
 
 def test_auth_settings_validation_api_key_mode_requires_key():
@@ -40,7 +40,7 @@ def test_build_client_uses_login_fields(monkeypatch):
         def __init__(self, **kwargs):
             calls.update(kwargs)
 
-    monkeypatch.setattr("netbox_unifi2netbox.services.auth.Unifi", DummyUnifi)
+    monkeypatch.setattr("netbox_unifi_sync.services.auth.Unifi", DummyUnifi)
     settings = UnifiAuthSettings(
         auth_mode="login",
         api_key="",
@@ -64,7 +64,7 @@ def test_build_client_disables_fallback_in_api_key_mode(monkeypatch):
         def __init__(self, **kwargs):
             calls.update(kwargs)
 
-    monkeypatch.setattr("netbox_unifi2netbox.services.auth.Unifi", DummyUnifi)
+    monkeypatch.setattr("netbox_unifi_sync.services.auth.Unifi", DummyUnifi)
     settings = UnifiAuthSettings(
         auth_mode="api_key",
         api_key="abc123",

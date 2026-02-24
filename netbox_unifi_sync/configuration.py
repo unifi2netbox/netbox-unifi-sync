@@ -15,8 +15,11 @@ except Exception:  # pragma: no cover
         pass
 
 
-PRIMARY_PLUGIN_NAME = "unifi2netbox"
-LEGACY_PLUGIN_NAME = "netbox_unifi2netbox"
+PRIMARY_PLUGIN_NAME = "netbox_unifi_sync"
+LEGACY_PLUGIN_NAMES = (
+    "unifi2netbox",
+    "netbox_unifi2netbox",
+)
 _SECRET_FIELDS = {
     "api_key",
     "password",
@@ -294,10 +297,11 @@ def _normalize_plugin_settings(settings: dict[str, Any]) -> dict[str, Any]:
 def get_plugin_settings(overrides: dict[str, Any] | None = None) -> dict[str, Any]:
     merged = dict(DEFAULT_SETTINGS)
     loaded_plugins = _plugins_config()
-    legacy = loaded_plugins.get(LEGACY_PLUGIN_NAME, {})
     primary = loaded_plugins.get(PRIMARY_PLUGIN_NAME, {})
-    if isinstance(legacy, dict):
-        merged.update(legacy)
+    for key in LEGACY_PLUGIN_NAMES:
+        legacy = loaded_plugins.get(key, {})
+        if isinstance(legacy, dict):
+            merged.update(legacy)
     if isinstance(primary, dict):
         merged.update(primary)
     if isinstance(overrides, dict):

@@ -8,7 +8,7 @@
 - Creates DHCP scopes as NetBox IP Ranges
 - Supports UniFi auth via API key or login (username/password + optional MFA)
 - Runs as NetBox jobs (manual run + scheduler job)
-- Stores operational settings in plugin models (UI), with optional defaults from `PLUGINS_CONFIG`
+- Stores operational settings in plugin models (UI/DB). `PLUGINS_CONFIG` is optional bootstrap only.
 
 ## Canonical plugin name
 
@@ -45,18 +45,11 @@ cd unifi2netbox
 PLUGINS = ["netbox_unifi_sync"]
 
 PLUGINS_CONFIG = {
-    "netbox_unifi_sync": {
-        "unifi_url": "https://unifi.local/proxy/network/integration/v1",
-        "auth_mode": "api_key",  # api_key | login
-        "api_key": "env:UNIFI_API_KEY",
-        "username": "",
-        "password": "",
-        "verify_ssl": True,
-        "default_site": "",
-        "dry_run": False,
-    }
+    "netbox_unifi_sync": {}
 }
 ```
+
+Configure tenant, controllers, credentials, mappings, and sync behavior in NetBox UI under `Plugins -> UniFi Sync`.
 
 4. Run migrations:
 

@@ -2,6 +2,7 @@ import os
 
 from netbox_unifi_sync.configuration import (
     get_plugin_settings,
+    normalize_plugin_settings,
     plugin_settings_to_env,
     resolve_secret_value,
     validate_plugin_settings,
@@ -121,3 +122,18 @@ def test_get_plugin_settings_alias_overrides_for_verify_ssl_and_dry_run():
     assert merged["dry_run_default"] is True
     assert merged["default_site"] == "HQ"
     assert merged["default_site_name"] == "HQ"
+
+
+def test_normalize_plugin_settings_can_apply_defaults_without_plugins_config_merge():
+    normalized = normalize_plugin_settings(
+        {
+            "unifi_url": "https://unifi.local",
+            "auth_mode": "api_key",
+            "api_key": "abc123",
+        },
+        include_defaults=True,
+    )
+    assert normalized["unifi_url"] == "https://unifi.local"
+    assert normalized["unifi_api_key"] == "abc123"
+    assert normalized["verify_ssl"] is True
+    assert normalized["dry_run"] is False

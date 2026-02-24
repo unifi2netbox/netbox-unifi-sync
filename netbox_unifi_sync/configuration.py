@@ -294,6 +294,17 @@ def _normalize_plugin_settings(settings: dict[str, Any]) -> dict[str, Any]:
     return normalized
 
 
+def normalize_plugin_settings(
+    settings: dict[str, Any] | None = None,
+    *,
+    include_defaults: bool = False,
+) -> dict[str, Any]:
+    merged: dict[str, Any] = dict(DEFAULT_SETTINGS) if include_defaults else {}
+    if isinstance(settings, dict):
+        merged.update(settings)
+    return _normalize_plugin_settings(merged)
+
+
 def get_plugin_settings(overrides: dict[str, Any] | None = None) -> dict[str, Any]:
     merged = dict(DEFAULT_SETTINGS)
     loaded_plugins = _plugins_config()
@@ -306,11 +317,11 @@ def get_plugin_settings(overrides: dict[str, Any] | None = None) -> dict[str, An
         merged.update(primary)
     if isinstance(overrides, dict):
         merged.update(overrides)
-    return _normalize_plugin_settings(merged)
+    return normalize_plugin_settings(merged)
 
 
 def sanitize_plugin_settings(plugin_settings: dict[str, Any]) -> dict[str, Any]:
-    normalized = _normalize_plugin_settings(plugin_settings)
+    normalized = normalize_plugin_settings(plugin_settings)
     sanitized = {}
     for key, value in normalized.items():
         if key in _SECRET_FIELDS:
@@ -327,7 +338,7 @@ def sanitize_plugin_settings(plugin_settings: dict[str, Any]) -> dict[str, Any]:
 
 
 def plugin_settings_to_env(plugin_settings: dict[str, Any]) -> dict[str, str]:
-    plugin_settings = _normalize_plugin_settings(plugin_settings)
+    plugin_settings = normalize_plugin_settings(plugin_settings)
     env_values: dict[str, str] = {}
 
     urls = _as_list(resolve_secret_value(plugin_settings.get("unifi_urls")))
@@ -417,7 +428,7 @@ def plugin_settings_to_env(plugin_settings: dict[str, Any]) -> dict[str, str]:
 
 
 def validate_plugin_settings(plugin_settings: dict[str, Any]) -> list[str]:
-    plugin_settings = _normalize_plugin_settings(plugin_settings)
+    plugin_settings = normalize_plugin_settings(plugin_settings)
     errors: list[str] = []
 
     urls = _as_list(resolve_secret_value(plugin_settings.get("unifi_urls")))
@@ -459,7 +470,7 @@ def validate_plugin_settings(plugin_settings: dict[str, Any]) -> list[str]:
 
 
 def get_sync_interval_minutes(plugin_settings: dict[str, Any] | None = None) -> int:
-    settings_data = _normalize_plugin_settings(plugin_settings or get_plugin_settings())
+    settings_data = normalize_plugin_settings(plugin_settings or get_plugin_settings())
     raw_value = settings_data.get("sync_interval_minutes", 0)
     try:
         interval = int(raw_value)

@@ -1,15 +1,15 @@
 # Configuration Reference
 
-`netbox_unifi_sync` uses plugin models (UI) as primary runtime configuration.
+`netbox_unifi_sync` uses plugin models (UI/DB) as primary runtime configuration.
 Internally, the sync engine still consumes environment-style keys; the plugin
-maps DB settings and `PLUGINS_CONFIG` values into those keys at runtime.
+maps DB settings into those keys at runtime. `PLUGINS_CONFIG` is optional bootstrap/default input.
 
 Use this document as a reference for available runtime options and how they map
 to engine behavior.
 
 ## Required Values (Plugin Runtime)
 
-Set these values in plugin UI (`Settings` + `Controllers`) or via `PLUGINS_CONFIG` defaults:
+Set these values in plugin UI (`Settings` + `Controllers`). You can optionally preseed defaults via `PLUGINS_CONFIG`:
 
 - UniFi controller URL(s)
 - Auth mode and credentials

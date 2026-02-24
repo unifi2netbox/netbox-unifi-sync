@@ -10,6 +10,7 @@ from main import run_sync_once
 
 from ..configuration import (
     get_plugin_settings,
+    normalize_plugin_settings,
     patched_environ,
     plugin_settings_to_env,
     resolve_secret_value,
@@ -190,7 +191,12 @@ def execute_sync(
     requested_by_id: int | None = None,
 ) -> dict[str, Any]:
     """Execute one sync cycle or dry-run preflight using current plugin settings."""
-    plugin_settings = get_plugin_settings(config_overrides)
+    if isinstance(config_overrides, dict):
+        # In plugin runtime, UI/DB settings are passed as overrides.
+        # Do not merge PLUGINS_CONFIG here; keep runtime source-of-truth in DB.
+        plugin_settings = normalize_plugin_settings(config_overrides, include_defaults=True)
+    else:
+        plugin_settings = get_plugin_settings()
     plugin_settings = _inject_internal_netbox_runtime_context(
         plugin_settings,
         requested_by_id=requested_by_id,
@@ -201,8 +207,8 @@ def execute_sync(
     if not str(resolve_secret_value(plugin_settings.get("netbox_token") or "")).strip():
         raise SyncConfigurationError(
             "Unable to resolve internal NetBox API token. "
-            "Create an API token for a privileged user or set "
-            "PLUGINS_CONFIG['netbox_unifi_sync']['netbox_token']."
+            "Create an API token for the requesting user (or first active superuser), "
+            "or provide 'netbox_token' in runtime overrides."
         )
 
     validation_errors = validate_plugin_settings(plugin_settings)

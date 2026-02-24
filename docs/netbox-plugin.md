@@ -24,18 +24,11 @@ In `configuration.py`:
 PLUGINS = ["netbox_unifi_sync"]
 
 PLUGINS_CONFIG = {
-    "netbox_unifi_sync": {
-        "unifi_url": "https://controller.example.com/proxy/network/integration/v1",
-        "auth_mode": "api_key",  # api_key | login
-        "api_key": "env:UNIFI_API_KEY",
-        "username": "",
-        "password": "",
-        "verify_ssl": True,
-        "default_site": "",
-        "dry_run": False,
-    }
+    "netbox_unifi_sync": {}
 }
 ```
+
+Runtime configuration is managed in NetBox UI (`Plugins -> UniFi Sync`).
 
 Compatibility alias is still supported:
 

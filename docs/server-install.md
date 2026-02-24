@@ -33,16 +33,7 @@ Edit `/opt/netbox/netbox/netbox/configuration.py`:
 PLUGINS = ["netbox_unifi_sync"]
 
 PLUGINS_CONFIG = {
-    "netbox_unifi_sync": {
-        "unifi_url": "https://unifi.local/proxy/network/integration/v1",
-        "auth_mode": "api_key",   # api_key | login
-        "api_key": "env:UNIFI_API_KEY",
-        "username": "",
-        "password": "",
-        "verify_ssl": True,
-        "default_site": "",
-        "dry_run": False,
-    }
+    "netbox_unifi_sync": {}
 }
 ```
 
@@ -130,7 +121,7 @@ There are two layers:
    - Controllers
    - Site mappings
 
-In practice, configure real runtime values in plugin UI.
+In practice, configure runtime values in plugin UI. `PLUGINS_CONFIG` is not required for normal operation.
 
 ## Minimum UI setup before first sync
 

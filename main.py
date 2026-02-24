@@ -817,7 +817,12 @@ def sync_site_vlans(nb, site_obj, nb_site, tenant):
 
 
 def _extract_prefix_cidr(net):
-    subnet = net.get("ip_subnet") or net.get("subnet")
+    subnet = (
+        net.get("ip_subnet")
+        or net.get("subnet")
+        or net.get("ipSubnet")
+        or net.get("ipv4_subnet")
+    )
     if not subnet:
         return None
     try:
@@ -829,19 +834,17 @@ def _extract_prefix_cidr(net):
 def sync_site_prefixes(nb, site_obj, nb_site, tenant, unifi=None):
     """Sync prefixes from UniFi network configs to NetBox."""
     try:
-        networks = site_obj.network_conf.all()
+        networks = list(site_obj.network_conf.all() or [])
     except Exception as e:
         logger.warning(f"Could not fetch networks for prefix sync at site {nb_site.name}: {e}")
         return
 
-    if not networks:
-        networks = []
-
-    # Integration API often omits subnet fields; fallback to legacy endpoint when needed.
-    if not any(_extract_prefix_cidr(net) for net in networks) and unifi is not None:
+    # Integration API can omit subnet fields on some records.
+    # Always merge legacy networkconf records to avoid missing subnets.
+    if unifi is not None:
         legacy_networks = _fetch_legacy_networkconf(unifi, site_obj) or []
         if legacy_networks:
-            networks = legacy_networks
+            networks.extend(legacy_networks)
 
     seen_prefixes = set()
     for net in networks:

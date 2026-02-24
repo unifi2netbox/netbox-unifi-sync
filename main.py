@@ -1630,6 +1630,11 @@ def process_device(unifi, nb, site, device, nb_ubiquity, tenant, unifi_device_ip
                     device_data['asset_tag'] = asset_tag
 
                 logger.debug("Getting postable fields for NetBox API")
+                netbox_url = str(os.getenv("NETBOX_URL") or "").strip()
+                netbox_token = str(os.getenv("NETBOX_TOKEN") or "").strip()
+                if not netbox_url or not netbox_token:
+                    logger.error("NETBOX_URL or NETBOX_TOKEN missing in runtime environment. Cannot create devices.")
+                    return
                 available_fields = get_postable_fields(netbox_url, netbox_token, 'dcim/devices')
                 logger.debug(f"Available NetBox API fields: {list(available_fields.keys())}")
                 if 'role' in available_fields:

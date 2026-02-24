@@ -15,6 +15,7 @@ from ..models import (
     SiteMapping,
     UnifiController,
 )
+from .audit import sanitize_error
 from .runtime import auth_signature, redact_runtime, to_controller_runtime
 
 logger = logging.getLogger("netbox.plugins.netbox_unifi_sync.orchestrator")
@@ -145,16 +146,66 @@ def _build_override(
     }
 
 
+def _build_unifi_client(runtime):
+    if runtime.auth_mode == AuthMode.API_KEY:
+        return Unifi(
+            base_url=runtime.base_url,
+            api_key=runtime.api_key,
+            api_key_header=runtime.api_key_header,
+            allow_login_fallback=False,
+        )
+
+    return Unifi(
+        base_url=runtime.base_url,
+        username=runtime.username,
+        password=runtime.password,
+        mfa_secret=runtime.mfa_secret or None,
+    )
+
+
+def _runtime_defaults(settings: GlobalSyncSettings) -> dict[str, Any]:
+    return {
+        "verify_ssl_default": settings.verify_ssl_default,
+        "request_timeout": settings.request_timeout,
+        "http_retries": settings.http_retries,
+        "retry_backoff_base": settings.retry_backoff_base,
+        "retry_backoff_max": settings.retry_backoff_max,
+    }
+
+
+def discover_unifi_site_names(settings: GlobalSyncSettings | None = None) -> list[str]:
+    settings_obj = settings or get_or_create_global_settings()
+    defaults = _runtime_defaults(settings_obj)
+    names: set[str] = set()
+
+    for controller in get_enabled_controllers():
+        runtime = to_controller_runtime(controller, defaults)
+        if runtime.auth_mode == AuthMode.API_KEY and not runtime.api_key:
+            continue
+        if runtime.auth_mode == AuthMode.LOGIN and (not runtime.username or not runtime.password):
+            continue
+
+        try:
+            client = _build_unifi_client(runtime)
+            client.verify_ssl = runtime.verify_ssl
+            for site_name in getattr(client, "sites", {}).keys():
+                site_name = str(site_name or "").strip()
+                if site_name:
+                    names.add(site_name)
+        except Exception as exc:  # pragma: no cover - network/runtime dependent
+            logger.warning(
+                "Failed to fetch UniFi sites for controller '%s': %s",
+                controller.name,
+                sanitize_error(str(exc)),
+            )
+
+    return sorted(names, key=str.casefold)
+
+
 def test_controller_connection(controller: UnifiController, settings: GlobalSyncSettings) -> dict[str, Any]:
     runtime = to_controller_runtime(
         controller,
-        {
-            "verify_ssl_default": settings.verify_ssl_default,
-            "request_timeout": settings.request_timeout,
-            "http_retries": settings.http_retries,
-            "retry_backoff_base": settings.retry_backoff_base,
-            "retry_backoff_max": settings.retry_backoff_max,
-        },
+        _runtime_defaults(settings),
     )
 
     if runtime.auth_mode == AuthMode.API_KEY and not runtime.api_key:
@@ -162,20 +213,7 @@ def test_controller_connection(controller: UnifiController, settings: GlobalSync
     if runtime.auth_mode == AuthMode.LOGIN and (not runtime.username or not runtime.password):
         raise SyncConfigurationError(f"Controller {controller.name}: missing username_ref/password_ref")
 
-    if runtime.auth_mode == AuthMode.API_KEY:
-        client = Unifi(
-            base_url=runtime.base_url,
-            api_key=runtime.api_key,
-            api_key_header=runtime.api_key_header,
-            allow_login_fallback=False,
-        )
-    else:
-        client = Unifi(
-            base_url=runtime.base_url,
-            username=runtime.username,
-            password=runtime.password,
-            mfa_secret=runtime.mfa_secret or None,
-        )
+    client = _build_unifi_client(runtime)
     client.verify_ssl = runtime.verify_ssl
 
     sites = getattr(client, "sites", [])
@@ -204,13 +242,7 @@ def run_sync(*, dry_run: bool, cleanup_requested: bool, requested_by_id: int | N
     if not controllers:
         raise SyncConfigurationError("No enabled UniFi controllers configured.")
 
-    defaults = {
-        "verify_ssl_default": settings.verify_ssl_default,
-        "request_timeout": settings.request_timeout,
-        "http_retries": settings.http_retries,
-        "retry_backoff_base": settings.retry_backoff_base,
-        "retry_backoff_max": settings.retry_backoff_max,
-    }
+    defaults = _runtime_defaults(settings)
 
     grouped: dict[tuple[str, ...], list[dict[str, Any]]] = defaultdict(list)
     for controller in controllers:

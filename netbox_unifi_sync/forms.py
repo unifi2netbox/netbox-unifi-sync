@@ -3,8 +3,10 @@ from __future__ import annotations
 import json
 
 from django import forms
+from dcim.models import Site
 
 from .models import GlobalSyncSettings, SiteMapping, UnifiController
+from .services.orchestrator import discover_unifi_site_names
 
 
 class JSONTextAreaField(forms.CharField):
@@ -93,9 +95,37 @@ class UnifiControllerForm(forms.ModelForm):
 
 
 class SiteMappingForm(forms.ModelForm):
+    unifi_site = forms.CharField()
+    netbox_site = forms.CharField()
+
     class Meta:
         model = SiteMapping
         fields = ("controller", "unifi_site", "netbox_site", "enabled")
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        discovered_unifi_sites = set(discover_unifi_site_names())
+        discovered_unifi_sites.update(
+            SiteMapping.objects.values_list("unifi_site", flat=True)
+        )
+        current_unifi = str(getattr(self.instance, "unifi_site", "") or "").strip()
+        if current_unifi:
+            discovered_unifi_sites.add(current_unifi)
+
+        unifi_choices = [("", "Select UniFi site")]
+        unifi_choices.extend((name, name) for name in sorted(discovered_unifi_sites, key=str.casefold) if name)
+        self.fields["unifi_site"].widget = forms.Select(choices=unifi_choices)
+
+        netbox_site_names = set(Site.objects.order_by("name").values_list("name", flat=True))
+        netbox_site_names.update(SiteMapping.objects.values_list("netbox_site", flat=True))
+        current_netbox = str(getattr(self.instance, "netbox_site", "") or "").strip()
+        if current_netbox:
+            netbox_site_names.add(current_netbox)
+
+        netbox_choices = [("", "Select NetBox site")]
+        netbox_choices.extend((name, name) for name in sorted(netbox_site_names, key=str.casefold) if name)
+        self.fields["netbox_site"].widget = forms.Select(choices=netbox_choices)
 
 
 class RunActionForm(forms.Form):

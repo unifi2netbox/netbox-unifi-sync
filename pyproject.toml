@@ -27,4 +27,11 @@ include-package-data = true
 [tool.setuptools.packages.find]
 namespaces = false
 include = ["netbox_unifi_sync*", "unifi2netbox*", "sync", "unifi"]
-exclude = ["tests*", "docs*", "lxc*", "tools*", "deploy*"]
+exclude = [
+  "tests*",
+  "docs*",
+  "lxc*",
+  "tools*",
+  "deploy*",
+  "netbox_unifi_sync.templates*",
+]

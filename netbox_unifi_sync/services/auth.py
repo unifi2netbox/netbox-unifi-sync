@@ -4,7 +4,7 @@ import logging
 from dataclasses import dataclass
 from typing import Any
 
-from unifi.unifi import Unifi
+from unifi2netbox.services.unifi.unifi import Unifi
 
 from ..configuration import resolve_secret_value
 

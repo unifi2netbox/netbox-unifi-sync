@@ -13,7 +13,10 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from unifi.spec_refresh import refresh_specs_bundle, write_specs_bundle  # noqa: E402
+from unifi2netbox.services.unifi.spec_refresh import (  # noqa: E402
+    refresh_specs_bundle,
+    write_specs_bundle,
+)
 
 
 def _parse_args() -> argparse.Namespace:

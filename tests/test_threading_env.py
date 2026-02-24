@@ -3,14 +3,15 @@ import subprocess
 import sys
 
 
-def _import_main_with_env(env_overrides):
+def _import_sync_engine_with_env(env_overrides):
     env = os.environ.copy()
     env.update(env_overrides)
     return subprocess.run(
         [
             sys.executable,
             "-c",
-            "import main; print(main.MAX_CONTROLLER_THREADS, main.MAX_SITE_THREADS, main.MAX_DEVICE_THREADS)",
+            "from unifi2netbox.services import sync_engine as m; "
+            "print(m.MAX_CONTROLLER_THREADS, m.MAX_SITE_THREADS, m.MAX_DEVICE_THREADS)",
         ],
         env=env,
         text=True,
@@ -20,7 +21,7 @@ def _import_main_with_env(env_overrides):
 
 
 def test_invalid_thread_env_values_fall_back_to_defaults():
-    result = _import_main_with_env(
+    result = _import_sync_engine_with_env(
         {
             "MAX_CONTROLLER_THREADS": "abc",
             "MAX_SITE_THREADS": "not-a-number",
@@ -32,7 +33,7 @@ def test_invalid_thread_env_values_fall_back_to_defaults():
 
 
 def test_non_positive_thread_env_values_fall_back_to_defaults():
-    result = _import_main_with_env(
+    result = _import_sync_engine_with_env(
         {
             "MAX_CONTROLLER_THREADS": "0",
             "MAX_SITE_THREADS": "-1",

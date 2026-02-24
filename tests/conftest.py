@@ -1,10 +1,14 @@
 """Shared fixtures for unifi2netbox tests."""
+import importlib
 import sys
 import os
 import pytest
 
-# Ensure the project root is on sys.path so we can import main
+# Ensure the project root is on sys.path so tests can import project modules.
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+# Backward-compatible alias for legacy `import main` in tests.
+sys.modules.setdefault("main", importlib.import_module("unifi2netbox.services.sync_engine"))
 
 
 @pytest.fixture

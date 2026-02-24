@@ -57,7 +57,7 @@
 **Problem**: Device type has no interface templates after sync.
 
 **Solutions**:
-- Check if the device model is in `unifi/model_specs.py` (`UNIFI_MODEL_SPECS`) or the community database
+- Check if the device model is in `unifi2netbox/services/unifi/model_specs.py` (`UNIFI_MODEL_SPECS`) or the community database
 - Run with `-v` flag to see debug output for template sync
 - Templates are only synced once per device type per run
 
@@ -71,7 +71,7 @@
 - Check logs: `docker compose logs -f`
 - Common cause: syntax errors in `.env` file
 - Ensure all required variables are set (`UNIFI_URLS`, `NETBOX_URL`, `NETBOX_TOKEN`, `NETBOX_IMPORT_TENANT`/`NETBOX_TENANT`)
-- Verify Python syntax: `python -m py_compile main.py`
+- Verify Python syntax: `python -m py_compile unifi2netbox/services/sync_engine.py`
 
 ---
 

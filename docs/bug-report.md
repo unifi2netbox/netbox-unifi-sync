@@ -1,7 +1,7 @@
 # Bug Report (Current Branch: v3.1)
 
 Dato: 2026-02-24  
-Scope: `unifi2netbox/services/sync_engine.py`, `sync/*`, `unifi/*`, tests  
+Scope: `unifi2netbox/services/sync_engine.py`, `unifi2netbox/services/sync/*`, `unifi2netbox/services/unifi/*`, tests  
 Miljø: Docker-baseret validering
 
 ## Executive Summary
@@ -22,7 +22,7 @@ Miljø: Docker-baseret validering
   - Central redaction formatter indført.
   - Dækker Authorization, API keys, token/password query params, og `https://user:pass@host`.
 - Filer:
-  - `sync/log_sanitizer.py`
+  - `unifi2netbox/services/sync/log_sanitizer.py`
   - `unifi2netbox/services/sync_engine.py` (formatter wiring)
   - `tests/test_log_sanitizer.py`
 - Verifikation:
@@ -38,7 +38,7 @@ Miljø: Docker-baseret validering
   - `count`/`timeout` clamped til sikre grænser.
   - `check=False` sat eksplicit.
 - Filer:
-  - `sync/ipam.py`
+  - `unifi2netbox/services/sync/ipam.py`
   - `tests/test_ipam_ping.py`
 - Verifikation:
   - Nye tests for invalid IP og argument-clamping.
@@ -52,7 +52,7 @@ Miljø: Docker-baseret validering
   - Erstattet med debug/warning logging i relevante kritiske paths.
 - Filer:
   - `unifi2netbox/services/sync_engine.py`
-  - `unifi/unifi.py`
+  - `unifi2netbox/services/unifi/unifi.py`
 
 ### BR-004: Regression fra API re-export cleanup
 
@@ -82,7 +82,7 @@ Miljø: Docker-baseret validering
   - Stor fil med mange ansvar (sync orchestration, API access, IPAM, cleanup, templates).
   - Øger regression-risiko og gør testbarhed dårligere.
 - Anbefalet handling:
-  - Fortsæt igangværende split i moduler (`sync/*`, `unifi/*`) med små, testdrevne trin.
+- Fortsæt igangværende split i moduler (`unifi2netbox/services/sync/*`, `unifi2netbox/services/unifi/*`) med små, testdrevne trin.
 
 ## Reproduktion / validering
 
@@ -91,7 +91,7 @@ Kør i Docker:
 ```bash
 docker run --rm -v "$PWD":/app -w /app unifi2netbox:v3.1-check sh -lc "pip install -q ruff && ruff check ."
 docker run --rm -v "$PWD":/app -w /app unifi2netbox:v3.1-check sh -lc "pip install -q pytest && pytest -q"
-docker run --rm -v "$PWD":/app -w /app unifi2netbox:v3.1-check sh -lc "pip install -q bandit && bandit -q -r unifi2netbox/services/sync_engine.py sync unifi"
+docker run --rm -v "$PWD":/app -w /app unifi2netbox:v3.1-check sh -lc "pip install -q bandit && bandit -q -r unifi2netbox/services/sync_engine.py unifi2netbox/services/sync unifi2netbox/services/unifi"
 ```
 
 Forventet resultat:
@@ -99,4 +99,3 @@ Forventet resultat:
 - `ruff`: all checks passed
 - `pytest`: alle tests grønne
 - `bandit`: ingen findings i app-kode scope ovenfor
-

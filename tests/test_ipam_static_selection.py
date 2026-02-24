@@ -1,6 +1,6 @@
 from types import SimpleNamespace
 
-from sync import ipam
+from unifi2netbox.services.sync import ipam
 
 
 class _FakeResponse:

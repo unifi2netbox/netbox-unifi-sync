@@ -92,7 +92,7 @@ python3 tools/refresh_unifi_specs.py
 ```bash
 UNIFI_SPECS_AUTO_REFRESH=true
 ```
-3. Add manual overrides in `UNIFI_MODEL_SPECS` (`unifi/model_specs.py`) when needed.
+3. Add manual overrides in `UNIFI_MODEL_SPECS` (`unifi2netbox/services/unifi/model_specs.py`) when needed.
 
 ---
 

@@ -13,9 +13,9 @@ import threading
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from urllib3.exceptions import InsecureRequestWarning
 # Import the unifi module instead of defining the Unifi class
-from sync import ipam as ipam_helpers
-from sync import vrf as vrf_helpers
-from sync.ipam import (
+from .sync import ipam as ipam_helpers
+from .sync import vrf as vrf_helpers
+from .sync.ipam import (
     _get_network_info_for_ip,
     _fetch_legacy_networkconf,
     extract_dhcp_pools_from_unifi,
@@ -24,19 +24,19 @@ from sync.ipam import (
     is_ip_in_dhcp_range,
     set_unifi_device_static_ip,
 )
-from sync.runtime_config import (
+from .sync.runtime_config import (
     _netbox_verify_ssl,
     _parse_env_bool,
     _read_env_int,
     _sync_interval_seconds,
     load_runtime_config,
 )
-from sync.runtime_config import _unifi_verify_ssl  # noqa: F401
-from sync.log_sanitizer import SensitiveDataFormatter
-from sync.vrf import get_or_create_vrf, get_vrf_for_site  # noqa: F401
-from unifi.unifi import Unifi
-from unifi.model_specs import UNIFI_MODEL_SPECS
-from unifi.spec_refresh import refresh_specs_bundle, write_specs_bundle
+from .sync.runtime_config import _unifi_verify_ssl  # noqa: F401
+from .sync.log_sanitizer import SensitiveDataFormatter
+from .sync.vrf import get_or_create_vrf, get_vrf_for_site  # noqa: F401
+from .unifi.unifi import Unifi
+from .unifi.model_specs import UNIFI_MODEL_SPECS
+from .unifi.spec_refresh import refresh_specs_bundle, write_specs_bundle
 # Suppress only the InsecureRequestWarning
 warnings.simplefilter("ignore", InsecureRequestWarning)
 logger = logging.getLogger(__name__)

@@ -4,9 +4,9 @@
 
 ```text
 UniFi Controller(s)
-  -> unifi/unifi.py (auth + request + retry)
-  -> unifi/sites.py + resource wrappers
-  -> main.py normalization + NetBox mapping
+  -> unifi2netbox/services/unifi/unifi.py (auth + request + retry)
+  -> unifi2netbox/services/unifi/sites.py + resource wrappers
+  -> unifi2netbox/services/sync_engine.py normalization + NetBox mapping
   -> pynetbox client
   -> NetBox
   -> optional cleanup phase

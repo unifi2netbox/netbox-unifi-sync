@@ -10,7 +10,7 @@ import threading
 
 import requests
 
-from sync.runtime_config import _netbox_verify_ssl, _parse_env_list, _unifi_verify_ssl
+from .runtime_config import _netbox_verify_ssl, _parse_env_list, _unifi_verify_ssl
 
 logger = logging.getLogger(__name__)
 

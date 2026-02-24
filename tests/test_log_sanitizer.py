@@ -1,6 +1,6 @@
 import logging
 
-from sync.log_sanitizer import REDACTED, SensitiveDataFormatter, redact_text
+from unifi2netbox.services.sync.log_sanitizer import REDACTED, SensitiveDataFormatter, redact_text
 
 
 def test_redact_authorization_header_value():

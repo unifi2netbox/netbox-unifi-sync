@@ -1,4 +1,4 @@
-from unifi.resources import BaseResource
+from .resources import BaseResource
 import logging
 logger = logging.getLogger(__name__)
 

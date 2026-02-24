@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from unifi import spec_refresh
+from unifi2netbox.services.unifi import spec_refresh
 
 
 def _sample_store_product() -> dict:

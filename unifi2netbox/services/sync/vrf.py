@@ -8,7 +8,7 @@ import threading
 
 import pynetbox
 
-from sync.runtime_config import _normalize_text_value
+from .runtime_config import _normalize_text_value
 
 logger = logging.getLogger(__name__)
 
@@ -181,4 +181,3 @@ def get_vrf_for_site(nb, site_name: str):
     logger.warning(f"Unknown NETBOX_VRF_MODE='{mode}'. Falling back to 'existing'.")
     vrf = get_existing_vrf(nb, target_vrf_name)
     return vrf, "existing"
-

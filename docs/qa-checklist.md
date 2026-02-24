@@ -14,7 +14,7 @@ Denne checkliste er lavet til release-gating før produktion.
 
 - [ ] Lint: `ruff check .` er grøn.
 - [ ] Unit/integration tests: `pytest -q` er grøn.
-- [ ] Security scan (app-kode): `bandit -q -r unifi2netbox/services/sync_engine.py sync unifi` er grøn.
+- [ ] Security scan (app-kode): `bandit -q -r unifi2netbox/services/sync_engine.py unifi2netbox/services/sync unifi2netbox/services/unifi` er grøn.
 - [ ] Testresultater er dokumenteret i release-notes/PR.
 
 ## 3. Sikkerhed
@@ -47,4 +47,3 @@ Denne checkliste er lavet til release-gating før produktion.
 - [ ] Kendte P2/P3 issues er accepteret og dokumenteret.
 - [ ] Rollback-plan er dokumenteret.
 - [ ] Driftsansvarlig har godkendt release.
-

@@ -70,15 +70,16 @@ Main thread-safe structures in `unifi2netbox/services/sync_engine.py`:
 
 ## Sync Flow (high-level)
 
-1. Load runtime config from environment variables (`.env`)
-2. Resolve NetBox tenant/roles/sites
-3. Process all configured UniFi controllers in parallel
-4. Per site:
+1. Load runtime config from plugin models (`Settings`, `Controllers`, `Site mappings`)
+2. Merge optional bootstrap/default values from `PLUGINS_CONFIG["netbox_unifi_sync"]`
+3. Resolve NetBox tenant/roles/sites
+4. Process all configured UniFi controllers in parallel
+5. Per site:
    - sync devices
    - sync interfaces/VLANs/WLANs/cables (feature toggles)
    - optional DHCP-to-static conversion (updates UniFi device IP config)
-5. Optional cleanup (`NETBOX_CLEANUP=true`)
-6. Repeat if `SYNC_INTERVAL > 0`
+6. Optional cleanup (`cleanup_enabled=true`)
+7. Repeat if scheduler is enabled and interval is configured
 
 ## Runtime Security-Relevant Defaults
 

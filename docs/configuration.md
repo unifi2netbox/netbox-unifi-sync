@@ -1,186 +1,196 @@
 # Configuration Reference
 
-`netbox_unifi_sync` uses plugin models (UI/DB) as primary runtime configuration.
-Internally, the sync engine still consumes environment-style keys; the plugin
-maps DB settings into those keys at runtime. `PLUGINS_CONFIG` is optional bootstrap/default input.
+`netbox_unifi_sync` is configured in NetBox UI first.  
+`PLUGINS_CONFIG` is optional bootstrap/default input.
 
-Use this document as a reference for available runtime options and how they map
-to engine behavior.
+## Configuration Layers
 
-## Required Values (Plugin Runtime)
+1. Plugin UI models (authoritative runtime state):
+   - `Settings` (`GlobalSyncSettings`)
+   - `Controllers` (`UnifiController`)
+   - `Site mappings` (`SiteMapping`)
+2. Optional bootstrap defaults from `PLUGINS_CONFIG["netbox_unifi_sync"]`
+3. Internal compatibility mapping into legacy engine keys (handled by plugin services)
 
-Set these values in plugin UI (`Settings` + `Controllers`). You can optionally preseed defaults via `PLUGINS_CONFIG`:
+## Minimum Required Setup (UI)
 
-- UniFi controller URL(s)
-- Auth mode and credentials
-- Import tenant name
-- NetBox role mapping
+Before first sync, set:
 
-## Runtime Key Reference
+- `Settings`:
+  - `tenant_name` (required)
+  - `netbox_roles` JSON mapping (required)
+- `Controllers`:
+  - at least one enabled controller
+  - `auth_mode` and matching credentials
+- `Site mappings`:
+  - required when UniFi site names differ from NetBox site names
 
-| Variable | Required | Default in code | Notes |
-|---|---|---|---|
-| `UNIFI_URLS` | Yes | — | Comma-separated list or JSON array |
-| `NETBOX_URL` | No† | — | NetBox base URL |
-| `NETBOX_TOKEN` | No† | — | NetBox API token |
-| `NETBOX_IMPORT_TENANT` or `NETBOX_TENANT` | Yes | — | Existing tenant name (`NETBOX_IMPORT_TENANT` takes precedence) |
-| `UNIFI_API_KEY` | * | — | Preferred auth mode |
-| `UNIFI_USERNAME` + `UNIFI_PASSWORD` | * | — | Fallback auth mode |
+## Optional `PLUGINS_CONFIG` Bootstrap
 
-† In plugin mode, `NETBOX_URL` and `NETBOX_TOKEN` are auto-resolved if omitted.  
-* Provide either API key or username/password.
+You can keep this minimal:
 
-Note: `unifi.ui.com` cloud API keys are not equivalent to local UniFi Network Integration API keys.
+```python
+PLUGINS = ["netbox_unifi_sync"]
 
-## UniFi API Settings
-
-| Variable | Required | Default in code | Description |
-|---|---|---|---|
-| `UNIFI_API_KEY_HEADER` | No | auto-probe | Custom API key header; if omitted, standard headers are probed |
-| `UNIFI_MFA_SECRET` | No | unset | Optional TOTP for session login |
-| `UNIFI_VERIFY_SSL` | No | `true` | Verify UniFi TLS certificates |
-| `UNIFI_PERSIST_SESSION` | No | `true` | Persist UniFi session cache to `~/.unifi_session.json` (file mode enforced to `0600`, and tightened automatically on load if too open) |
-| `UNIFI_REQUEST_TIMEOUT` | No | `15` | Request timeout in seconds |
-| `UNIFI_HTTP_RETRIES` | No | `3` | Retry attempts for transient failures |
-| `UNIFI_RETRY_BACKOFF_BASE` | No | `1.0` | Exponential backoff base delay (seconds) |
-| `UNIFI_RETRY_BACKOFF_MAX` | No | `30.0` | Max backoff delay (seconds) |
-
-### URL format examples
-
-Integration API:
-```bash
-UNIFI_URLS=https://controller.example.com/proxy/network/integration/v1
+PLUGINS_CONFIG = {
+    "netbox_unifi_sync": {}
+}
 ```
 
-Integration API (alternate path):
-```bash
-UNIFI_URLS=https://controller.example.com/integration/v1
+You can also preseed defaults:
+
+```python
+PLUGINS_CONFIG = {
+    "netbox_unifi_sync": {
+        "unifi_url": "https://unifi.local",
+        "auth_mode": "api_key",  # api_key | login
+        "api_key": "env:UNIFI_API_KEY",
+        "username": "env:UNIFI_USERNAME",
+        "password": "env:UNIFI_PASSWORD",
+        "verify_ssl": True,
+        "default_site": "",
+        "dry_run": False,
+    }
+}
 ```
 
-Base URL (integration base is auto-probed):
-```bash
-UNIFI_URLS=https://controller.example.com
-```
+## Controller Auth Modes
 
-Legacy/session login:
-```bash
-UNIFI_URLS=https://controller.example.com:8443
-```
+### `api_key` (recommended)
 
-Multiple controllers:
-```bash
-UNIFI_URLS=https://ctrl1.example.com/proxy/network/integration/v1,https://ctrl2.example.com:8443
-```
+- Uses Integration API v1
+- Requires `api_key`/`api_key_ref`
+- Optional custom header `api_key_header` (default `X-API-KEY`)
 
-If Integration API is unavailable, use local controller base URL + `UNIFI_USERNAME`/`UNIFI_PASSWORD`.
+### `login` (legacy fallback)
 
-## NetBox Settings
+- Uses username/password session login
+- Requires `username` + `password`
+- Optional `mfa_secret`
 
-| Variable | Required | Default in code | Description |
-|---|---|---|---|
-| `NETBOX_DEVICE_STATUS` | No | `offline` | Status for newly created devices |
-| `NETBOX_VERIFY_SSL` | No | `true` | Verify NetBox TLS certificates |
-| `NETBOX_SERIAL_MODE` | No | `mac` | `mac`, `unifi`, `id`, `none` |
-| `NETBOX_VRF_MODE` | No | `existing` | `none`, `existing`, `create` |
-| `NETBOX_DEFAULT_VRF` | No | empty | If set, use this VRF name for all imported IPs instead of site-based VRF names |
+Note: local Integration API keys are required for Integration API mode.  
+`unifi.ui.com` cloud API keys are not drop-in compatible.
 
-### Device roles
+## Key Runtime Settings (UI)
 
-Configure either:
-- individual vars:
-  - `NETBOX_ROLE_WIRELESS`
-  - `NETBOX_ROLE_LAN`
-  - `NETBOX_ROLE_GATEWAY`
-  - `NETBOX_ROLE_ROUTER`
-  - `NETBOX_ROLE_UNKNOWN`
-- or JSON mapping:
-  - `NETBOX_ROLES={"WIRELESS":"Wireless AP","LAN":"Switch",...}`
+### Sync scope and behavior
 
-`NETBOX_ROLES` overrides individual role vars.
+- `sync_interfaces`
+- `sync_vlans`
+- `sync_wlans`
+- `sync_cables`
+- `sync_stale_cleanup`
+- `cleanup_enabled`
+- `cleanup_grace_days`
+- `dry_run_default`
 
-## Site Mapping
+### IPAM and DHCP
 
-| Variable | Required | Default in code | Description |
-|---|---|---|---|
-| `UNIFI_USE_SITE_MAPPING` | No | `false` | Optional legacy toggle (kept for compatibility) |
-| `UNIFI_SITE_MAPPINGS` | No | unset | UniFi->NetBox name mapping (`JSON` or `key=value` pairs) |
+- `dhcp_auto_discover`
+- `dhcp_writeback_enabled`
+- Prefix sync is enabled by default (`SYNC_PREFIXES=true` internally)
+- DHCP scopes are created as NetBox IP Ranges (`SYNC_DHCP_RANGES=true` internally)
 
-## Device Specs Auto-Refresh
+### Identity and mapping
 
-| Variable | Required | Default in code | Description |
-|---|---|---|---|
-| `UNIFI_SPECS_AUTO_REFRESH` | No | `false` | Refresh bundled specs from upstream Device Type Library on startup |
-| `UNIFI_SPECS_INCLUDE_STORE` | No | `false` | Also enrich from UniFi Store technical specs (slower) |
-| `UNIFI_SPECS_REFRESH_TIMEOUT` | No | `45` | Timeout (seconds) for Device Type Library tarball fetch |
-| `UNIFI_SPECS_STORE_TIMEOUT` | No | `15` | Timeout (seconds) per UniFi Store product request |
-| `UNIFI_SPECS_STORE_MAX_WORKERS` | No | `8` | Parallel workers for UniFi Store enrichment |
-| `UNIFI_SPECS_WRITE_CACHE` | No | `false` | Write refreshed bundle back to `data/ubiquiti_device_specs.json` |
+- `tenant_name`
+- `default_site`
+- `tag_strategy`
+- `default_tags`
+- `asset_tag_enabled`
+- `asset_tag_patterns`
+- `asset_tag_uppercase`
+- `netbox_roles` JSON mapping
 
-Notes:
-- This is optional and disabled by default.
-- Runtime precedence is still: hardcoded `UNIFI_MODEL_SPECS` overrides community/store data.
-- For one-off/manual refresh, use `python3 tools/refresh_unifi_specs.py`.
+### VRF and serial strategy
 
-## DHCP / Static IP Behavior
+- `vrf_mode`: `none` | `existing` | `create`
+- `default_vrf_name`
+- `serial_mode`: `mac` | `unifi` | `id` | `none`
 
-| Variable | Required | Default in code | Description |
-|---|---|---|---|
-| `DHCP_AUTO_DISCOVER` | No | `true` | Discover DHCP ranges from UniFi network configs |
-| `DHCP_RANGES` | No | empty | Manual CIDRs, merged with discovered ranges |
-| `DEFAULT_GATEWAY` | No | empty | Fallback gateway if UniFi network config lacks one |
-| `DEFAULT_DNS` | No | empty | Fallback DNS servers (comma-separated) if UniFi lacks them |
+### Reliability and concurrency
 
-When a device IP is in a DHCP range, static replacement logic assigns a free IP from the same prefix (except gateways). Gateway and DNS are read from UniFi's network config (`gateway_ip`, `dhcpd_dns_1-4`). If unavailable, `DEFAULT_GATEWAY` and `DEFAULT_DNS` env vars are used as fallback.
+- `verify_ssl_default`
+- `request_timeout`
+- `http_retries`
+- `retry_backoff_base`
+- `retry_backoff_max`
+- `max_controller_threads`
+- `max_site_threads`
+- `max_device_threads`
+- `rate_limit_per_second`
 
-Discovered UniFi DHCP pools are also synced into NetBox as `IP Ranges` inside the corresponding prefix (toggle with `SYNC_DHCP_RANGES`).
+### Specs refresh (optional)
 
-Important: DHCP-to-static conversion also updates the device IP configuration in UniFi (writeback for that specific flow).
-To avoid UniFi writeback entirely, disable DHCP conversion inputs:
-- `DHCP_AUTO_DISCOVER=false`
-- leave `DHCP_RANGES` unset/empty
+- `specs_auto_refresh`
+- `specs_include_store`
+- `specs_refresh_timeout`
+- `specs_store_timeout`
+- `specs_store_max_workers`
+- `specs_write_cache`
 
-## Feature Toggles
+## Advanced: Engine Key Reference
 
-| Variable | Default in code | Description |
-|---|---|---|
-| `SYNC_INTERFACES` | `true` | Sync physical ports and radios |
-| `SYNC_VLANS` | `true` | Sync VLANs |
-| `SYNC_PREFIXES` | `true` | Sync Prefixes |
-| `SYNC_DHCP_RANGES` | `true` | Create DHCP scopes as NetBox IP Ranges |
-| `SYNC_WLANS` | `true` | Sync WLANs |
-| `SYNC_CABLES` | `true` | Sync uplink cables |
-| `SYNC_STALE_CLEANUP` | `true` | Mark missing devices offline |
+The plugin maps UI state into these internal engine keys (for compatibility/debugging):
 
-## Threading
-
-| Variable | Default in code |
+| Internal key | Source in plugin UI |
 |---|---|
-| `MAX_CONTROLLER_THREADS` | `5` |
-| `MAX_SITE_THREADS` | `8` |
-| `MAX_DEVICE_THREADS` | `8` |
+| `UNIFI_URLS` | Enabled controller URLs (`base_url`) |
+| `UNIFI_API_KEY` | `api_key_ref` / bootstrap `api_key` |
+| `UNIFI_API_KEY_HEADER` | `api_key_header` |
+| `UNIFI_USERNAME` | `username_ref` / bootstrap `username` |
+| `UNIFI_PASSWORD` | `password_ref` / bootstrap `password` |
+| `UNIFI_MFA_SECRET` | `mfa_secret_ref` |
+| `UNIFI_VERIFY_SSL` | controller `verify_ssl` or global default |
+| `UNIFI_REQUEST_TIMEOUT` | `request_timeout` |
+| `UNIFI_HTTP_RETRIES` | `http_retries` |
+| `UNIFI_RETRY_BACKOFF_BASE` | `retry_backoff_base` |
+| `UNIFI_RETRY_BACKOFF_MAX` | `retry_backoff_max` |
+| `NETBOX_IMPORT_TENANT` | `tenant_name` |
+| `NETBOX_DEFAULT_VRF` | `default_vrf_name` |
+| `NETBOX_VRF_MODE` | `vrf_mode` |
+| `NETBOX_SERIAL_MODE` | `serial_mode` |
+| `UNIFI_SITE_MAPPINGS` | `Site mappings` model rows |
+| `UNIFI_TAG_STRATEGY` | `tag_strategy` |
+| `SYNC_INTERFACES` | `sync_interfaces` |
+| `SYNC_VLANS` | `sync_vlans` |
+| `SYNC_WLANS` | `sync_wlans` |
+| `SYNC_CABLES` | `sync_cables` |
+| `SYNC_STALE_CLEANUP` | `sync_stale_cleanup` |
+| `SYNC_PREFIXES` | Enabled internally (default `true`) |
+| `SYNC_DHCP_RANGES` | Enabled internally (default `true`) |
+| `DHCP_AUTO_DISCOVER` | `dhcp_auto_discover` |
+| `NETBOX_CLEANUP` | `cleanup_enabled` |
+| `CLEANUP_STALE_DAYS` | `cleanup_grace_days` |
 
-## Cleanup
+## Advanced: Optional Bootstrap Keys
 
-| Variable | Default in code | Description |
-|---|---|---|
-| `NETBOX_CLEANUP` | `false` | Enable destructive cleanup phase |
-| `CLEANUP_STALE_DAYS` | `30` | Grace period before stale device deletion |
+These are valid in `PLUGINS_CONFIG["netbox_unifi_sync"]` when you need preseed defaults:
 
-## Sync Interval
+- `unifi_url` or `unifi_urls`
+- `auth_mode`
+- `api_key`, `username`, `password`, `unifi_mfa_secret`
+- `verify_ssl`
+- `default_site`
+- `dry_run`
+- `netbox_import_tenant`, `netbox_roles`
+- `unifi_site_mappings`
+- `tag_strategy`, `default_tags`
+- `asset_tag_enabled`, `asset_tag_patterns`, `asset_tag_uppercase`
+- `rate_limit_per_second`
 
-| Variable | Default in code | Description |
-|---|---|---|
-| `SYNC_INTERVAL` | `0` | `0` = run once and exit; `>0` = continuous loop |
+## Secret Handling
 
-Note: `.env.example` sets `SYNC_INTERVAL=600` as an operational default for Docker deployments.
+Use secret references instead of plaintext:
 
-## `.env` Example
+- `env:VAR_NAME`
+- `file:/absolute/path/to/secret`
 
-```bash
-UNIFI_URLS=https://controller.example.com/proxy/network/integration/v1
-UNIFI_SITE_MAPPINGS={"Default":"Main Office"}
+Supported on controller credentials and plugin bootstrap values.
 
-NETBOX_URL=https://netbox.example.com
-NETBOX_IMPORT_TENANT=My Organization
-NETBOX_ROLES={"WIRELESS":"Wireless AP","LAN":"Switch","GATEWAY":"Gateway Firewall","ROUTER":"Router","UNKNOWN":"Network Device"}
-```
+## Advanced Compatibility Notes
+
+- The sync engine still consumes environment-style keys internally.
+- Plugin services map UI state into those keys at runtime.
+- You normally do not need to set `NETBOX_URL`/`NETBOX_TOKEN` manually in plugin mode.
+- Legacy CLI/standalone configuration is not required for normal plugin operation.

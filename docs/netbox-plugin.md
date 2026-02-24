@@ -7,7 +7,7 @@ This project ships as a NetBox plugin package named `netbox_unifi_sync`.
 From your NetBox Python environment:
 
 ```bash
-pip install /path/to/unifi2netbox-plugins
+pip install netbox-unifi-sync
 ```
 
 For development (editable):

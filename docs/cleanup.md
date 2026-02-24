@@ -10,10 +10,10 @@ The cleanup phase runs **after** each sync cycle and removes stale/orphaned data
 
 ## Enabling Cleanup
 
-```bash
-NETBOX_CLEANUP=true
-CLEANUP_STALE_DAYS=30
-```
+Enable in plugin `Settings`:
+
+- `cleanup_enabled = true`
+- `cleanup_grace_days = 30`
 
 ## What Gets Deleted
 
@@ -21,7 +21,7 @@ CLEANUP_STALE_DAYS=30
 
 Devices present in NetBox but **not found** in any UniFi controller are considered stale.
 
-- The grace period (`CLEANUP_STALE_DAYS`) prevents deletion of temporarily offline devices
+- The grace period (`cleanup_grace_days`) prevents deletion of temporarily offline devices
 - Devices must have been last updated more than N days ago
 - When a device is deleted, its interfaces, cables, and IP addresses are also removed
 - Default grace period: **30 days**
@@ -49,13 +49,13 @@ Ubiquiti device types with `device_count == 0` are deleted. Before deletion, all
 ### Before Enabling
 
 1. **Test in staging first** — clone your NetBox database and test cleanup there
-2. **Start with a high grace period** — set `CLEANUP_STALE_DAYS=9999` to see what would be affected without actually deleting recent devices
+2. **Start with a high grace period** — set `cleanup_grace_days=9999` to see what would be affected without actually deleting recent devices
 3. **Review logs** — every deletion is logged at INFO level with the device name and serial
 4. **Back up NetBox** — ensure you have a recent database backup
 
 ### Recommended Settings
 
-| Scenario | `CLEANUP_STALE_DAYS` | Notes |
+| Scenario | `cleanup_grace_days` | Notes |
 |---|---|---|
 | Conservative | `90` | 3 months grace period |
 | Standard | `30` | 1 month (default) |
@@ -95,4 +95,4 @@ A second run should report 0 deletions if cleanup was complete.
 
 ## Disabling Cleanup
 
-Set `NETBOX_CLEANUP=false` or remove the variable entirely (default is disabled).
+Set `cleanup_enabled=false` (default is disabled).

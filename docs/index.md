@@ -16,6 +16,7 @@ Production-focused UniFi -> NetBox synchronization as an in-platform NetBox plug
 - [FAQ](./faq.html)
 - [Cleanup](./cleanup.html)
 - [Device Specs](./device-specs.html)
+- [Release & PyPI Publish](./release.html)
 - [QA Checklist](./qa-checklist.html)
 - [Bug Report](./bug-report.html)
 

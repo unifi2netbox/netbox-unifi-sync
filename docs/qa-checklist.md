@@ -6,9 +6,9 @@ Denne checkliste er lavet til release-gating før produktion.
 
 - [ ] `docker build` gennemføres uden fejl.
 - [ ] `docker compose config` validerer konfigurationen.
-- [ ] `.env` er komplet og uden hardcoded test-værdier.
-- [ ] `UNIFI_VERIFY_SSL=true` i produktion (medmindre der er en dokumenteret undtagelse).
-- [ ] `NETBOX_VERIFY_SSL=true` i produktion (medmindre der er en dokumenteret undtagelse).
+- [ ] Plugin `Settings`/`Controllers` er komplet udfyldt uden hardcoded test-værdier.
+- [ ] `verify_ssl_default=true` i produktion (medmindre der er en dokumenteret undtagelse).
+- [ ] Eventuel outbound NetBox API verifikation er slået til (hvis ekstern API mode bruges).
 
 ## 2. Test i Docker (obligatorisk)
 
@@ -20,7 +20,7 @@ Denne checkliste er lavet til release-gating før produktion.
 ## 3. Sikkerhed
 
 - [ ] Logredaction er aktiv for tokens, passwords, API keys og URL credentials.
-- [ ] Ingen credentials i commit-historik, docs eller `.env.example`.
+- [ ] Ingen credentials i commit-historik, docs eller konfigurationsfiler.
 - [ ] NetBox token har mindst nødvendige rettigheder.
 - [ ] UniFi auth-mode er valideret (Integration API eller legacy fallback).
 - [ ] Session-fil permissions håndhæves (`0600`) ved persistering.
@@ -39,7 +39,7 @@ Denne checkliste er lavet til release-gating før produktion.
 - [ ] `data/` mount er aktiv hvis specs-cache skal persisteres.
 - [ ] Fejl kan spores via loglinjer uden eksponering af hemmeligheder.
 - [ ] Threading-env (`MAX_*_THREADS`) er sat til stabile værdier for miljøet.
-- [ ] `SYNC_INTERVAL` er sat så jobs ikke overlapper.
+- [ ] `schedule_enabled` og `sync_interval_minutes` er sat så jobs ikke overlapper.
 
 ## 6. Release-gate (go/no-go)
 

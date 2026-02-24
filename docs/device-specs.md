@@ -30,11 +30,11 @@ This keeps curated overrides intact while inheriting rich template data from com
 
 ### Runtime (automatic)
 
-Set in `.env`:
+Set in plugin `Settings` (or bootstrap via `PLUGINS_CONFIG`):
 
-```bash
-UNIFI_SPECS_AUTO_REFRESH=true
-UNIFI_SPECS_INCLUDE_STORE=false
+```text
+specs_auto_refresh = true
+specs_include_store = false
 ```
 
 This refreshes the in-memory bundle at startup before sync begins.

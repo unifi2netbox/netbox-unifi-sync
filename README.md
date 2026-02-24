@@ -18,12 +18,6 @@ Use:
 PLUGINS = ["netbox_unifi_sync"]
 ```
 
-Compatibility alias is still supported:
-
-```python
-PLUGINS = ["unifi2netbox"]
-```
-
 ## Install on a NetBox server (venv)
 
 1. Clone repository:

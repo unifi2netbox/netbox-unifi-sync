@@ -53,7 +53,7 @@ python3 tools/refresh_unifi_specs.py --skip-store
 
 ## Synced Template Types
 
-`_sync_templates()` in `main.py` handles:
+`_sync_templates()` in `unifi2netbox/services/sync_engine.py` handles:
 
 - interface templates (`dcim.interface_templates`)
 - console port templates (`dcim.console_port_templates`)

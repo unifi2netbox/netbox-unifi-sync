@@ -6,7 +6,7 @@ from typing import Any
 
 import requests
 
-from main import run_sync_once
+from unifi2netbox.services.sync_engine import run_sync_once
 
 from ..configuration import (
     get_plugin_settings,

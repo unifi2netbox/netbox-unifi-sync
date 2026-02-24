@@ -30,12 +30,6 @@ PLUGINS_CONFIG = {
 
 Runtime configuration is managed in NetBox UI (`Plugins -> UniFi Sync`).
 
-Compatibility alias is still supported:
-
-```python
-PLUGINS = ["unifi2netbox"]
-```
-
 ## Run sync
 
 - UI: `Plugins -> UniFi Sync -> Sync Dashboard -> Run now`

@@ -16,10 +16,6 @@ except Exception:  # pragma: no cover
 
 
 PRIMARY_PLUGIN_NAME = "netbox_unifi_sync"
-LEGACY_PLUGIN_NAMES = (
-    "unifi2netbox",
-    "netbox_unifi2netbox",
-)
 _SECRET_FIELDS = {
     "api_key",
     "password",
@@ -309,10 +305,6 @@ def get_plugin_settings(overrides: dict[str, Any] | None = None) -> dict[str, An
     merged = dict(DEFAULT_SETTINGS)
     loaded_plugins = _plugins_config()
     primary = loaded_plugins.get(PRIMARY_PLUGIN_NAME, {})
-    for key in LEGACY_PLUGIN_NAMES:
-        legacy = loaded_plugins.get(key, {})
-        if isinstance(legacy, dict):
-            merged.update(legacy)
     if isinstance(primary, dict):
         merged.update(primary)
     if isinstance(overrides, dict):

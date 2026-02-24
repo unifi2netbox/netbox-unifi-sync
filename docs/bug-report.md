@@ -1,7 +1,7 @@
 # Bug Report (Current Branch: v3.1)
 
 Dato: 2026-02-24  
-Scope: `main.py`, `sync/*`, `unifi/*`, tests  
+Scope: `unifi2netbox/services/sync_engine.py`, `sync/*`, `unifi/*`, tests  
 Miljø: Docker-baseret validering
 
 ## Executive Summary
@@ -23,7 +23,7 @@ Miljø: Docker-baseret validering
   - Dækker Authorization, API keys, token/password query params, og `https://user:pass@host`.
 - Filer:
   - `sync/log_sanitizer.py`
-  - `main.py` (formatter wiring)
+  - `unifi2netbox/services/sync_engine.py` (formatter wiring)
   - `tests/test_log_sanitizer.py`
 - Verifikation:
   - Test suite indeholder redaction-cases og er grøn i Docker.
@@ -51,16 +51,16 @@ Miljø: Docker-baseret validering
 - Løsning:
   - Erstattet med debug/warning logging i relevante kritiske paths.
 - Filer:
-  - `main.py`
+  - `unifi2netbox/services/sync_engine.py`
   - `unifi/unifi.py`
 
 ### BR-004: Regression fra API re-export cleanup
 
 - Status: **Fixed**
 - Severity: **P2 (Compatibility)**
-- Problem: Oprydning af imports i `main.py` brød test/import-kontrakter.
+- Problem: Oprydning af imports i `unifi2netbox/services/sync_engine.py` brød test/import-kontrakter.
 - Løsning:
-  - Backward-compatible symbol re-exports bevaret i `main.py`.
+  - Backward-compatible symbol re-exports bevaret i `unifi2netbox/services/sync_engine.py`.
 
 ## Åbne risici (ikke blockers til i morgen, men bør planlægges)
 
@@ -74,7 +74,7 @@ Miljø: Docker-baseret validering
 - Anbefalet handling:
   - Faseopdeling: erstat brede catches med domænespecifikke exceptions i top 10 hot paths først.
 
-### BR-006: Monolitisk `main.py` (arkitektur-risiko)
+### BR-006: Monolitisk `unifi2netbox/services/sync_engine.py` (arkitektur-risiko)
 
 - Status: **Open**
 - Severity: **P2**
@@ -91,7 +91,7 @@ Kør i Docker:
 ```bash
 docker run --rm -v "$PWD":/app -w /app unifi2netbox:v3.1-check sh -lc "pip install -q ruff && ruff check ."
 docker run --rm -v "$PWD":/app -w /app unifi2netbox:v3.1-check sh -lc "pip install -q pytest && pytest -q"
-docker run --rm -v "$PWD":/app -w /app unifi2netbox:v3.1-check sh -lc "pip install -q bandit && bandit -q -r main.py sync unifi"
+docker run --rm -v "$PWD":/app -w /app unifi2netbox:v3.1-check sh -lc "pip install -q bandit && bandit -q -r unifi2netbox/services/sync_engine.py sync unifi"
 ```
 
 Forventet resultat:

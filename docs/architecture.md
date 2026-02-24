@@ -59,7 +59,7 @@ Default thread limits:
 
 ## Shared Caches / Locks
 
-Main thread-safe structures in `main.py`:
+Main thread-safe structures in `unifi2netbox/services/sync_engine.py`:
 - `vrf_cache` + per-name locks
 - `_custom_field_cache`
 - `_tag_cache`

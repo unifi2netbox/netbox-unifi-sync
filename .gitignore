@@ -2,8 +2,6 @@
 .unifi_session.json
 .coverage
 .pytest_cache/
-!logs/.keep
-logs/*
 config/config.yaml
 config.yaml
 __pycache__/

@@ -18,7 +18,7 @@ from ..configuration import (
 from .auth import UnifiAuthSettings
 from .mapping import format_result_summary
 
-logger = logging.getLogger("netbox.plugins.netbox_unifi2netbox.sync")
+logger = logging.getLogger("netbox.plugins.unifi2netbox.sync")
 
 
 class SyncConfigurationError(ValueError):

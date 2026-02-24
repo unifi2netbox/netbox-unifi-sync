@@ -17,7 +17,6 @@ except Exception:  # pragma: no cover
 
 PRIMARY_PLUGIN_NAME = "unifi2netbox"
 LEGACY_PLUGIN_NAME = "netbox_unifi2netbox"
-PLUGIN_NAMES = (PRIMARY_PLUGIN_NAME, LEGACY_PLUGIN_NAME)
 _SECRET_FIELDS = {
     "api_key",
     "password",

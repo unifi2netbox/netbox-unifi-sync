@@ -1,0 +1,26 @@
+services:
+  netbox:
+    user: "root"
+    ports:
+      - "8000:8080"
+    volumes:
+      - ${UNIFI2NETBOX_PLUGIN_PATH:-../unifi2netbox}:/plugins/unifi2netbox:rw
+      - ${UNIFI2NETBOX_PLUGIN_PATH:-../unifi2netbox}:/opt/netbox/netbox/plugins/unifi2netbox:rw
+    entrypoint:
+      - /bin/bash
+      - -lc
+      - |
+        /usr/local/bin/uv pip install --python /opt/netbox/venv/bin/python -e /plugins/unifi2netbox
+        exec /usr/bin/tini -- /opt/netbox/docker-entrypoint.sh /opt/netbox/launch-netbox.sh
+
+  netbox-worker:
+    user: "root"
+    volumes:
+      - ${UNIFI2NETBOX_PLUGIN_PATH:-../unifi2netbox}:/plugins/unifi2netbox:rw
+      - ${UNIFI2NETBOX_PLUGIN_PATH:-../unifi2netbox}:/opt/netbox/netbox/plugins/unifi2netbox:rw
+    entrypoint:
+      - /bin/bash
+      - -lc
+      - |
+        /usr/local/bin/uv pip install --python /opt/netbox/venv/bin/python -e /plugins/unifi2netbox
+        exec /usr/bin/tini -- /opt/netbox/docker-entrypoint.sh /opt/netbox/venv/bin/python /opt/netbox/netbox/manage.py rqworker

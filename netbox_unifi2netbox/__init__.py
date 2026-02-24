@@ -14,6 +14,7 @@ from .configuration import DEFAULT_SETTINGS
 
 class Unifi2NetBoxPluginConfig(PluginConfig):
     name = "netbox_unifi2netbox"
+    label = "unifi2netbox"
     verbose_name = "UniFi2NetBox"
     description = "Synchronize UniFi inventory into NetBox"
     version = "0.2.0"

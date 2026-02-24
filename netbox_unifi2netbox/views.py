@@ -14,7 +14,7 @@ from .configuration import get_plugin_settings
 
 
 @login_required
-@permission_required("netbox_unifi2netbox.view_syncrun", raise_exception=True)
+@permission_required("unifi2netbox.view_syncrun", raise_exception=True)
 def status_view(request: HttpRequest) -> HttpResponse:
     latest_run = SyncRun.objects.order_by("-created").first()
     recent_runs = SyncRun.objects.order_by("-created")[:10]
@@ -22,8 +22,8 @@ def status_view(request: HttpRequest) -> HttpResponse:
     trigger_form = SyncTriggerForm(initial={"dry_run": bool(get_plugin_settings().get("dry_run_default", False))})
 
     if request.method == "POST":
-        if not request.user.has_perm("netbox_unifi2netbox.run_sync"):
-            return HttpResponseForbidden("Missing permission: netbox_unifi2netbox.run_sync")
+        if not request.user.has_perm("unifi2netbox.run_sync"):
+            return HttpResponseForbidden("Missing permission: unifi2netbox.run_sync")
 
         trigger_form = SyncTriggerForm(request.POST)
         if trigger_form.is_valid():
@@ -36,7 +36,7 @@ def status_view(request: HttpRequest) -> HttpResponse:
                 job_identifier = getattr(job, "id", None) or getattr(job, "pk", None) or "queued"
                 mode = "dry run" if dry_run else "full sync"
                 messages.success(request, f"Queued {mode} job ({job_identifier}).")
-            return redirect("plugins:netbox_unifi2netbox:status")
+            return redirect("plugins:unifi2netbox:status")
 
     context = {
         "latest_run": latest_run,
@@ -48,7 +48,7 @@ def status_view(request: HttpRequest) -> HttpResponse:
 
 
 @login_required
-@permission_required("netbox_unifi2netbox.view_syncrun", raise_exception=True)
+@permission_required("unifi2netbox.view_syncrun", raise_exception=True)
 def syncrun_list_view(request: HttpRequest) -> HttpResponse:
     queryset = SyncRun.objects.order_by("-created")
     filter_form = SyncRunFilterForm(request.GET)
@@ -86,7 +86,7 @@ def syncrun_list_view(request: HttpRequest) -> HttpResponse:
 
 
 @login_required
-@permission_required("netbox_unifi2netbox.view_syncrun", raise_exception=True)
+@permission_required("unifi2netbox.view_syncrun", raise_exception=True)
 def syncrun_detail_view(request: HttpRequest, pk: int) -> HttpResponse:
     run = get_object_or_404(SyncRun, pk=pk)
     return render(request, "netbox_unifi2netbox/syncrun_detail.html", {"run": run})

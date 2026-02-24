@@ -4,6 +4,8 @@ from django.urls import path
 
 from . import views
 
+app_name = "unifi2netbox"
+
 urlpatterns = (
     path("", views.status_view, name="status"),
     path("runs/", views.syncrun_list_view, name="syncrun_list"),

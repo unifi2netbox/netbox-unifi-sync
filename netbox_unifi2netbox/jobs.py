@@ -9,7 +9,7 @@ from .configuration import get_plugin_settings, get_sync_interval_minutes
 from .models import SyncRun
 from .services.sync_service import build_config_snapshot, execute_sync, format_sync_summary
 
-logger = logging.getLogger("netbox.plugins.netbox_unifi2netbox.jobs")
+logger = logging.getLogger("netbox.plugins.unifi2netbox.jobs")
 
 
 def _resolve_user(user_id: Any):

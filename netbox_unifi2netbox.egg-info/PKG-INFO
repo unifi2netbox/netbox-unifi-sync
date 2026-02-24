@@ -20,6 +20,7 @@ Dynamic: license-file
 `unifi2netbox` is a **NetBox plugin** for synchronizing UniFi inventory into NetBox.
 
 This repository is now plugin-only. Legacy standalone runtime/deployment artifacts have been removed.
+Target platform is NetBox 4.x (plugin structure aligned with the NetBox plugin tutorial for v4).
 
 ## Install (pip)
 
@@ -47,8 +48,6 @@ PLUGINS_CONFIG = {
         "default_site": "",
         "dry_run": False,
 
-        "netbox_url": "http://netbox:8080",
-        "netbox_token": "env:NETBOX_TOKEN",
         "netbox_import_tenant": "Default",
         "netbox_roles": {
             "WIRELESS": "Wireless AP",
@@ -61,6 +60,9 @@ PLUGINS_CONFIG = {
     }
 }
 ```
+
+`netbox_url` and `netbox_token` are optional.  
+When omitted, the plugin resolves internal NetBox API access at runtime.
 
 ## Auth modes
 

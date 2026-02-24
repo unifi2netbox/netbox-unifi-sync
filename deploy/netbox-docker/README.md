@@ -66,23 +66,14 @@ docker compose ps
 docker compose logs -f netbox
 ```
 
-## 5) Create superuser and NetBox API token (for sync engine)
+## 5) Create superuser
 
 ```bash
 docker compose exec netbox /opt/netbox/netbox/manage.py createsuperuser
 ```
 
-Create a token and copy it:
-
-```bash
-docker compose exec netbox /opt/netbox/netbox/manage.py shell -c "from django.contrib.auth import get_user_model; from users.models import Token; u=get_user_model().objects.get(username='admin'); t=Token.objects.create(user=u); print(t.key)"
-```
-
-Set `NETBOX_TOKEN` in `.env.plugin` and `.netbox-docker/env/netbox.env`, then restart app containers:
-
-```bash
-docker compose up -d --force-recreate netbox netbox-worker
-```
+`unifi2netbox` can resolve an internal NetBox API token automatically at runtime.
+Manual `NETBOX_TOKEN` is optional (only needed if you want explicit token control).
 
 ## 6) Prepare tenant required by sync
 

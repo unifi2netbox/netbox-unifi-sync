@@ -40,6 +40,7 @@ DEFAULT_SETTINGS: dict[str, Any] = {
     "verify_ssl": True,
     "unifi_verify_ssl": True,
     "unifi_persist_session": True,
+    # Optional for plugin runtime. If omitted, plugin resolves internal NetBox API context.
     "netbox_url": "",
     "netbox_token": "",
     "netbox_import_tenant": "",
@@ -426,11 +427,7 @@ def validate_plugin_settings(plugin_settings: dict[str, Any]) -> list[str]:
                 "(or 'unifi_username'+'unifi_password')."
             )
 
-    if not str(resolve_secret_value(plugin_settings.get("netbox_url") or "")).strip():
-        errors.append("Missing plugin setting 'netbox_url'.")
-
-    if not str(resolve_secret_value(plugin_settings.get("netbox_token") or "")).strip():
-        errors.append("Missing plugin setting 'netbox_token'.")
+    # netbox_url/netbox_token are optional in plugin config and can be injected at runtime.
 
     tenant_import = str(resolve_secret_value(plugin_settings.get("netbox_import_tenant") or "")).strip()
     tenant_fallback = str(resolve_secret_value(plugin_settings.get("netbox_tenant") or "")).strip()

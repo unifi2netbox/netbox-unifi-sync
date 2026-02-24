@@ -44,7 +44,7 @@ def _run_sync_job(
     sync_run.mark_running()
 
     try:
-        result = execute_sync(dry_run=bool(dry_run))
+        result = execute_sync(dry_run=bool(dry_run), requested_by_id=requested_by_id)
     except Exception as exc:
         sync_run.mark_failed(str(exc))
         raise

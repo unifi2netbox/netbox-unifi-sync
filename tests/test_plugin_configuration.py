@@ -43,8 +43,6 @@ def test_plugin_settings_to_env_maps_core_values(monkeypatch):
 def test_validate_plugin_settings_reports_missing_values():
     errors = validate_plugin_settings({})
     assert any("unifi_url" in msg for msg in errors)
-    assert any("netbox_url" in msg for msg in errors)
-    assert any("netbox_token" in msg for msg in errors)
     assert any("netbox_roles" in msg for msg in errors)
 
 
@@ -74,6 +72,20 @@ def test_validate_plugin_settings_api_key_mode_requires_api_key():
         }
     )
     assert any("auth_mode=api_key" in msg for msg in errors)
+
+
+def test_validate_plugin_settings_allows_missing_netbox_url_and_token():
+    errors = validate_plugin_settings(
+        {
+            "unifi_url": "https://unifi.local",
+            "auth_mode": "api_key",
+            "api_key": "abc123",
+            "netbox_import_tenant": "Tenant",
+            "netbox_roles": {"WIRELESS": "Wireless AP"},
+        }
+    )
+    assert not any("netbox_url" in msg for msg in errors)
+    assert not any("netbox_token" in msg for msg in errors)
 
 
 def test_plugin_settings_to_env_login_mode_ignores_api_key():

@@ -14,9 +14,9 @@ PLUGINS_CONFIG = {
         "verify_ssl": getenv("UNIFI_VERIFY_SSL", "true").lower() == "true",
         "default_site": getenv("UNIFI_DEFAULT_SITE", ""),
         "dry_run": getenv("UNIFI_DRY_RUN", "false").lower() == "true",
-        # Required by the current sync engine that writes through NetBox API
-        "netbox_url": getenv("NETBOX_API_URL", "http://netbox:8080"),
-        "netbox_token": "env:NETBOX_TOKEN",
+        # Optional override. If omitted, plugin resolves internal NetBox API context at runtime.
+        # "netbox_url": getenv("NETBOX_API_URL", "http://netbox:8080"),
+        # "netbox_token": "env:NETBOX_TOKEN",
         "netbox_import_tenant": getenv("NETBOX_TENANT", "Default"),
         "netbox_roles": {
             "WIRELESS": "Wireless AP",

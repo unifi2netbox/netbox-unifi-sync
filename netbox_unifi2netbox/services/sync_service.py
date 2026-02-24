@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import os
 from typing import Any
 
 import requests
@@ -38,6 +39,73 @@ def _as_list(value: Any) -> list[str]:
     if isinstance(value, (list, tuple, set)):
         return [str(item).strip() for item in value if str(item).strip()]
     return [str(value).strip()]
+
+
+def _resolve_internal_netbox_url(plugin_settings: dict[str, Any]) -> str:
+    configured = str(resolve_secret_value(plugin_settings.get("netbox_url") or "")).strip()
+    if configured:
+        return configured.rstrip("/")
+
+    for env_name in ("NETBOX_API_URL", "NETBOX_URL"):
+        env_value = os.getenv(env_name, "").strip()
+        if env_value:
+            return env_value.rstrip("/")
+
+    # netbox-docker default service hostname
+    return "http://netbox:8080"
+
+
+def _resolve_internal_netbox_token(*, requested_by_id: int | None = None) -> str:
+    env_token = os.getenv("NETBOX_TOKEN", "").strip()
+    if env_token:
+        return env_token
+
+    try:
+        from django.contrib.auth import get_user_model
+        from users.models import Token
+    except Exception:
+        return ""
+
+    User = get_user_model()
+    user = None
+
+    if requested_by_id:
+        try:
+            user = User.objects.filter(pk=requested_by_id, is_active=True).first()
+        except Exception:
+            user = None
+
+    if user is None:
+        try:
+            user = User.objects.filter(is_superuser=True, is_active=True).order_by("id").first()
+        except Exception:
+            user = None
+
+    if user is None:
+        return ""
+
+    token = Token.objects.filter(user=user).first()
+    if token is None:
+        token = Token.objects.create(user=user)
+    return str(getattr(token, "key", "") or "").strip()
+
+
+def _inject_internal_netbox_runtime_context(
+    plugin_settings: dict[str, Any],
+    *,
+    requested_by_id: int | None = None,
+) -> dict[str, Any]:
+    resolved = dict(plugin_settings)
+
+    if not str(resolve_secret_value(resolved.get("netbox_url") or "")).strip():
+        resolved["netbox_url"] = _resolve_internal_netbox_url(resolved)
+
+    if not str(resolve_secret_value(resolved.get("netbox_token") or "")).strip():
+        token = _resolve_internal_netbox_token(requested_by_id=requested_by_id)
+        if token:
+            resolved["netbox_token"] = token
+
+    return resolved
 
 
 def _preflight_netbox(plugin_settings: dict[str, Any]) -> dict[str, Any]:
@@ -119,9 +187,23 @@ def execute_sync(
     *,
     dry_run: bool = False,
     config_overrides: dict[str, Any] | None = None,
+    requested_by_id: int | None = None,
 ) -> dict[str, Any]:
     """Execute one sync cycle or dry-run preflight using current plugin settings."""
     plugin_settings = get_plugin_settings(config_overrides)
+    plugin_settings = _inject_internal_netbox_runtime_context(
+        plugin_settings,
+        requested_by_id=requested_by_id,
+    )
+
+    if not str(resolve_secret_value(plugin_settings.get("netbox_url") or "")).strip():
+        raise SyncConfigurationError("Unable to resolve internal NetBox API URL for sync runtime.")
+    if not str(resolve_secret_value(plugin_settings.get("netbox_token") or "")).strip():
+        raise SyncConfigurationError(
+            "Unable to resolve internal NetBox API token. "
+            "Create an API token for a privileged user or set PLUGINS_CONFIG['unifi2netbox']['netbox_token']."
+        )
+
     validation_errors = validate_plugin_settings(plugin_settings)
     if validation_errors:
         raise SyncConfigurationError(" ".join(validation_errors))

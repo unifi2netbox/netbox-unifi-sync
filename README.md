@@ -31,8 +31,6 @@ PLUGINS_CONFIG = {
         "default_site": "",
         "dry_run": False,
 
-        "netbox_url": "http://netbox:8080",
-        "netbox_token": "env:NETBOX_TOKEN",
         "netbox_import_tenant": "Default",
         "netbox_roles": {
             "WIRELESS": "Wireless AP",
@@ -45,6 +43,9 @@ PLUGINS_CONFIG = {
     }
 }
 ```
+
+`netbox_url` and `netbox_token` are optional.  
+When omitted, the plugin resolves internal NetBox API access at runtime.
 
 ## Auth modes
 

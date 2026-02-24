@@ -22,6 +22,9 @@ on:
 jobs:
   analyze:
     name: Analyze (${{ matrix.language }})
+    # Keep CodeQL optional unless Advanced Security is explicitly enabled for this repo.
+    # Set repository variable ENABLE_CODEQL=true to run this job.
+    if: ${{ vars.ENABLE_CODEQL == 'true' }}
     # Runner size impacts CodeQL analysis time. To learn more, please see:
     #   - https://gh.io/recommended-hardware-resources-for-running-codeql
     #   - https://gh.io/supported-runners-and-hardware-resources

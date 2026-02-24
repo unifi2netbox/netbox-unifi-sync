@@ -2,12 +2,9 @@ from __future__ import annotations
 
 try:
     from netbox.plugins import PluginConfig
-except ImportError:  # pragma: no cover - NetBox < 4 compatibility
-    try:
-        from extras.plugins import PluginConfig
-    except ImportError:  # pragma: no cover - test/runtime fallback without NetBox
-        class PluginConfig:  # type: ignore[no-redef]
-            pass
+except ModuleNotFoundError:  # pragma: no cover - local unit tests without NetBox installed
+    class PluginConfig:  # type: ignore[no-redef]
+        pass
 
 from .configuration import DEFAULT_SETTINGS
 
@@ -19,7 +16,7 @@ class Unifi2NetBoxPluginConfig(PluginConfig):
     description = "Synchronize UniFi inventory into NetBox"
     version = "0.2.0"
     base_url = "unifi2netbox"
-    min_version = "3.2.0"
+    min_version = "4.0.0"
     default_settings = DEFAULT_SETTINGS
     required_settings = []
 

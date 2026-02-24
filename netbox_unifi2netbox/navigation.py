@@ -1,9 +1,6 @@
 from __future__ import annotations
 
-try:  # pragma: no cover - NetBox 4+
-    from netbox.plugins import PluginMenuButton, PluginMenuItem
-except Exception:  # pragma: no cover - NetBox 3.x
-    from extras.plugins import PluginMenuButton, PluginMenuItem
+from netbox.plugins import PluginMenuButton, PluginMenuItem
 
 
 status_buttons = [

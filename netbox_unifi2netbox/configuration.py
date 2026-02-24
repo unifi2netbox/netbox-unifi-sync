@@ -252,27 +252,27 @@ def _normalize_plugin_settings(settings: dict[str, Any]) -> dict[str, Any]:
     normalized["unifi_password"] = password
     normalized["password"] = password
 
-    verify_ssl = _as_bool(
-        normalized.get("unifi_verify_ssl", normalized.get("verify_ssl", True)),
-        default=True,
-    )
+    if "verify_ssl" in settings:
+        verify_ssl_source = settings.get("verify_ssl")
+    else:
+        verify_ssl_source = settings.get("unifi_verify_ssl", True)
+    verify_ssl = _as_bool(verify_ssl_source, default=True)
     normalized["unifi_verify_ssl"] = verify_ssl
     normalized["verify_ssl"] = verify_ssl
 
-    default_site = str(
-        resolve_secret_value(
-            normalized.get("default_site_name")
-            or normalized.get("default_site")
-            or ""
-        )
-    ).strip()
+    if "default_site" in settings:
+        default_site_source = settings.get("default_site")
+    else:
+        default_site_source = settings.get("default_site_name")
+    default_site = str(resolve_secret_value(default_site_source or "")).strip()
     normalized["default_site_name"] = default_site
     normalized["default_site"] = default_site
 
-    dry_run_default = _as_bool(
-        normalized.get("dry_run_default", normalized.get("dry_run", False)),
-        default=False,
-    )
+    if "dry_run" in settings:
+        dry_run_source = settings.get("dry_run")
+    else:
+        dry_run_source = settings.get("dry_run_default", False)
+    dry_run_default = _as_bool(dry_run_source, default=False)
     normalized["dry_run_default"] = dry_run_default
     normalized["dry_run"] = dry_run_default
 

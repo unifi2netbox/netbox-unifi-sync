@@ -3,6 +3,7 @@
 `unifi2netbox` is a **NetBox plugin** for synchronizing UniFi inventory into NetBox.
 
 This repository is now plugin-only. Legacy standalone runtime/deployment artifacts have been removed.
+Target platform is NetBox 4.x (plugin structure aligned with the NetBox plugin tutorial for v4).
 
 ## Install (pip)
 

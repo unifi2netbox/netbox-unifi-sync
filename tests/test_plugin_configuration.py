@@ -1,6 +1,7 @@
 import os
 
 from netbox_unifi2netbox.configuration import (
+    get_plugin_settings,
     plugin_settings_to_env,
     resolve_secret_value,
     validate_plugin_settings,
@@ -92,3 +93,19 @@ def test_plugin_settings_to_env_login_mode_ignores_api_key():
     assert env["UNIFI_USERNAME"] == "admin"
     assert env["UNIFI_PASSWORD"] == "secret"
     assert "UNIFI_API_KEY" not in env
+
+
+def test_get_plugin_settings_alias_overrides_for_verify_ssl_and_dry_run():
+    merged = get_plugin_settings(
+        {
+            "verify_ssl": False,
+            "dry_run": True,
+            "default_site": "HQ",
+        }
+    )
+    assert merged["verify_ssl"] is False
+    assert merged["unifi_verify_ssl"] is False
+    assert merged["dry_run"] is True
+    assert merged["dry_run_default"] is True
+    assert merged["default_site"] == "HQ"
+    assert merged["default_site_name"] == "HQ"

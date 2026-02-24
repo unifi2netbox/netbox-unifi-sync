@@ -17,6 +17,13 @@ cp deploy/netbox-docker/docker-compose.override.yml .netbox-docker/docker-compos
 cp deploy/netbox-docker/configuration/plugins.py .netbox-docker/configuration/plugins.py
 ```
 
+`netbox-docker` loads `.netbox-docker/configuration/plugins.py` from
+`/opt/netbox/netbox/netbox/configuration.py` at runtime.
+So your `PLUGINS` and `PLUGINS_CONFIG` are effectively configured via:
+
+- host: `.netbox-docker/configuration/plugins.py`
+- container: `/etc/netbox/config/plugins.py` (imported by `/opt/netbox/netbox/netbox/configuration.py`)
+
 ## 3) Configure environment variables
 
 Use `deploy/netbox-docker/env.netbox-plugin.example` as baseline.

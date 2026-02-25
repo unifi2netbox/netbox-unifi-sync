@@ -32,7 +32,7 @@ All notable changes to this project are documented in this file.
 ## 2026-02-25
 
 ### Fixed
-- Bumped release version to `0.1.1` to avoid PyPI filename reuse rejection after prior `0.1.0` artifact deletion.
+- Bumped release version to `0.1.2` to avoid PyPI filename reuse rejection after prior `0.1.0` artifact deletion and existing `v0.1.1` tag collision.
 
 ## 2026-02-16
 

@@ -29,6 +29,11 @@ All notable changes to this project are documented in this file.
 ### Removed
 - Raw auto-generated git-log changelog format replaced by structured release notes.
 
+## 2026-02-25
+
+### Fixed
+- Bumped release version to `0.1.1` to avoid PyPI filename reuse rejection after prior `0.1.0` artifact deletion.
+
 ## 2026-02-16
 
 ### Changed

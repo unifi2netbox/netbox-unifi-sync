@@ -24,8 +24,8 @@ PyPI project:
 For local development (editable install from source):
 
 ```bash
-git clone https://github.com/unifi2netbox/netbox_unifi_sync.git
-/opt/netbox/venv/bin/pip install -e /path/to/netbox_unifi_sync
+git clone https://github.com/unifi2netbox/netbox-unifi-sync.git
+/opt/netbox/venv/bin/pip install -e /path/to/netbox-unifi-sync
 ```
 
 ### 2. Configure NetBox
@@ -63,8 +63,8 @@ Then open NetBox UI and verify `Plugins -> UniFi Sync` exists.
 ### 1. Clone repos
 
 ```bash
-git clone https://github.com/unifi2netbox/netbox_unifi_sync.git
-cd netbox_unifi_sync
+git clone https://github.com/unifi2netbox/netbox-unifi-sync.git
+cd netbox-unifi-sync
 git clone -b release https://github.com/netbox-community/netbox-docker.git .netbox-docker
 ```
 
@@ -158,7 +158,7 @@ From PyPI install:
 From source checkout:
 
 ```bash
-cd /path/to/netbox_unifi_sync
+cd /path/to/netbox-unifi-sync
 git pull
 /opt/netbox/venv/bin/pip install -e .
 /opt/netbox/venv/bin/python /opt/netbox/netbox/manage.py migrate

@@ -13,7 +13,7 @@ This plugin is published as:
 2. Configure **PyPI Trusted Publisher** (GitHub OIDC) with:
    - **PyPI Project Name**: `netbox-unifi-sync`
    - **Owner**: `unifi2netbox`
-   - **Repository name**: `netbox_unifi_sync`
+   - **Repository name**: `netbox-unifi-sync`
    - **Workflow name**: `publish-python-package.yml`
    - **Environment name**: `pypi`
 3. In GitHub repository settings, create environment:

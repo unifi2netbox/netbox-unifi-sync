@@ -69,6 +69,8 @@ Use secret references, not plaintext:
 - [Troubleshooting](docs/troubleshooting.md)
 - [Release and PyPI publish](docs/release.md)
 - [netbox-docker setup](deploy/netbox-docker/README.md)
+- [Wiki source pages](wiki/Home.md)
+- [GitHub Wiki](https://github.com/unifi2netbox/netbox-unifi-sync/wiki)
 
 ## Security Notes
 

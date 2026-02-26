@@ -4,28 +4,6 @@
 
 {% block content %}
 
-{# ── helper macros ──────────────────────────────────────────────────────── #}
-{# Render a standard (non-boolean) form field                                #}
-{% macro field(f) %}
-<div class="mb-3">
-  <label class="form-label fw-semibold" for="{{ f.id_for_label }}">{{ f.label }}</label>
-  {{ f }}
-  {% if f.help_text %}<div class="form-text text-muted">{{ f.help_text }}</div>{% endif %}
-  {% for e in f.errors %}<div class="text-danger small mt-1">{{ e }}</div>{% endfor %}
-</div>
-{% endmacro %}
-
-{# Render a single checkbox field                                            #}
-{% macro checkbox(f) %}
-<div class="form-check mb-2">
-  {{ f }}
-  <label class="form-check-label" for="{{ f.id_for_label }}">{{ f.label }}</label>
-  {% if f.help_text %}<div class="form-text text-muted">{{ f.help_text }}</div>{% endif %}
-  {% for e in f.errors %}<div class="text-danger small mt-1">{{ e }}</div>{% endfor %}
-</div>
-{% endmacro %}
-
-{# NOTE: Django templates do not support macros — we render fields inline.   #}
 
 <form method="post" novalidate>
 {% csrf_token %}

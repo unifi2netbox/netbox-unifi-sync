@@ -27,6 +27,24 @@ class NetBoxUnifiSyncConfig(PluginConfig):
     def ready(self):
         super().ready()
         from . import jobs  # noqa: F401
+        try:
+            from netbox.models.features import register_models
+            from .models import (
+                GlobalSyncSettings,
+                UnifiController,
+                SiteMapping,
+                SyncRun,
+                PluginAuditEvent,
+            )
+            register_models(
+                GlobalSyncSettings,
+                UnifiController,
+                SiteMapping,
+                SyncRun,
+                PluginAuditEvent,
+            )
+        except Exception:
+            pass  # NetBox version without register_models — graceful degradation
 
 
 config = NetBoxUnifiSyncConfig

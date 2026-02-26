@@ -1,4 +1,4 @@
-# netbox_unifi_sync
+# netbox-unifi-sync
 
 > [!WARNING]
 > We are aware that there are issues in the codebase.

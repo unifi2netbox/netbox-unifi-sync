@@ -29,6 +29,14 @@ All notable changes to this project are documented in this file.
 ### Removed
 - Raw auto-generated git-log changelog format replaced by structured release notes.
 
+## [0.1.6] - 2026-02-26
+
+### Fixed
+- `verify_ssl` controller setting now takes effect during Integration API probe.
+  Previously `verify_ssl=False` on the controller was ignored during `__init__`
+  because `configure_integration_api()` ran before the setting was applied,
+  causing SSL validation failures on self-signed certificates.
+
 ## [0.1.5] - 2026-02-26
 
 ### Fixed

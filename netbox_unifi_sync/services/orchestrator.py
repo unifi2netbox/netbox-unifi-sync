@@ -157,6 +157,7 @@ def _build_unifi_client(runtime):
             api_key=runtime.api_key,
             api_key_header=runtime.api_key_header,
             allow_login_fallback=False,
+            verify_ssl=runtime.verify_ssl,
         )
 
     return Unifi(
@@ -164,6 +165,7 @@ def _build_unifi_client(runtime):
         username=runtime.username,
         password=runtime.password,
         mfa_secret=runtime.mfa_secret or None,
+        verify_ssl=runtime.verify_ssl,
     )
 
 

@@ -60,6 +60,7 @@ class Unifi:
         api_key=None,
         api_key_header=None,
         allow_login_fallback=True,
+        verify_ssl=None,
     ):
         logger.debug(f"Initializing UniFi connection to: {base_url}")
         self.base_url = base_url.rstrip("/") if base_url else base_url
@@ -78,7 +79,7 @@ class Unifi:
         self.api_style = None  # "integration" or "legacy"
         self.integration_api_base = None
         self.integration_auth_headers = {}
-        self.verify_ssl = self._read_env_bool("UNIFI_VERIFY_SSL", True)
+        self.verify_ssl = verify_ssl if verify_ssl is not None else self._read_env_bool("UNIFI_VERIFY_SSL", True)
         self.persist_session = self._read_env_bool("UNIFI_PERSIST_SESSION", True)
         self.request_timeout = self._read_env_int(
             "UNIFI_REQUEST_TIMEOUT",

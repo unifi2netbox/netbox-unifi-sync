@@ -1,12 +1,20 @@
 # netbox_unifi_sync
 
-> [!WARNING]  
-> We are aware that there are issues in the codebase.  
-> Please remember that this is a hobby project maintained in our spare time.  
-> Fixes and improvements will be addressed as time allows.  
-> Your patience and understanding are appreciated.
+> [!WARNING]
+> We are aware that there are issues in the codebase.
+> This is a hobby project maintained in spare time.
+> Fixes and improvements are implemented when time allows.
+> Do not deploy in production without proper validation.
 
 `netbox_unifi_sync` is a NetBox 4.2+ plugin that runs UniFi -> NetBox sync jobs inside NetBox workers.
+
+---
+
+> [!IMPORTANT]
+> NetBox should be treated as the Source of Truth.
+> Objects created or managed by this plugin should not be manually modified unless you understand how future sync runs will affect them.
+
+---
 
 ## Visual Overview
 
@@ -19,6 +27,8 @@ flowchart LR
     A["Plugin UI<br/>Settings/Controllers/Mappings"] --> P
 ```
 
+---
+
 ## Features
 
 - Device sync (devices, interfaces, VLANs, prefixes, WLANs, uplink relations, IP assignments)
@@ -26,6 +36,12 @@ flowchart LR
 - UniFi auth via API key or legacy login (username/password + optional MFA)
 - Manual and scheduled sync jobs
 - Runtime settings stored in plugin models (`Settings`, `Controllers`, `Site mappings`)
+
+> [!NOTE]
+> Sync is strictly one-way: UniFi -> NetBox.
+> No configuration is ever pushed back to UniFi.
+
+---
 
 ## Quick Start
 
@@ -35,13 +51,20 @@ flowchart LR
 pip install netbox-unifi-sync
 ```
 
-PyPI project page: <https://pypi.org/project/netbox-unifi-sync/>
+PyPI project page:
+https://pypi.org/project/netbox-unifi-sync/
 
 For `netbox-docker`, add the package to `local_requirements.txt` before build:
 
 ```bash
 echo "netbox-unifi-sync" >> local_requirements.txt
 ```
+
+> [!IMPORTANT]
+> The plugin must be installed in the same environment as both NetBox and the worker container.
+> Otherwise scheduled jobs will fail.
+
+---
 
 ### 2. Enable plugin in NetBox
 
@@ -53,34 +76,96 @@ PLUGINS_CONFIG = {
 }
 ```
 
+---
+
 ### 3. Apply migrations
 
 ```bash
 python manage.py migrate
 ```
 
+> [!CAUTION]
+> Skipping migrations will result in database errors and plugin initialization failure.
+
+---
+
 ### 4. Configure in UI
 
-Go to `Plugins -> UniFi Sync` and configure:
+Go to:
 
-1. `Settings` (`tenant_name`, `netbox_roles`, defaults)
-2. `Controllers` (URL, auth mode, credentials)
-3. `Site mappings` (if UniFi/NetBox site names differ)
+Plugins -> UniFi Sync
+
+Configure:
+
+1. Settings (`tenant_name`, `netbox_roles`, defaults)
+2. Controllers (URL, auth mode, credentials)
+3. Site mappings (if UniFi/NetBox site names differ)
+
+> [!TIP]
+> Use a dedicated read-only API account in UniFi for synchronization.
+> This limits impact if credentials are exposed.
+
+---
 
 ### 5. Run first sync
 
-- UI: `Plugins -> UniFi Sync -> Sync Dashboard -> Run now`
-- CLI:
+UI:
+Plugins -> UniFi Sync -> Sync Dashboard -> Run now
+
+CLI:
 
 ```bash
 python manage.py netbox_unifi_sync_run --dry-run --json
+python manage.py netbox_unifi_sync_run
 python manage.py netbox_unifi_sync_run --cleanup
 ```
 
+> [!IMPORTANT]
+> Always run the first execution with --dry-run to verify intended changes before writing to NetBox.
+
+> [!CAUTION]
+> The --cleanup flag removes objects in NetBox that no longer exist in UniFi.
+> Review carefully before using in production.
+
+---
+
 ## Credentials
 
-Set credentials only in `Plugins -> UniFi Sync -> Controllers`.
-Do not store UniFi credentials in `PLUGINS_CONFIG`.
+Set credentials only in:
+
+Plugins -> UniFi Sync -> Controllers
+
+> [!WARNING]
+> Never store UniFi credentials in PLUGINS_CONFIG.
+> Configuration files may end up in version control or logs.
+
+---
+
+## Scheduled Jobs
+
+The plugin supports NetBox Scheduled Jobs.
+
+Recommended intervals:
+
+- Small environments: every 30–60 minutes
+- Larger environments: every 2–4 hours
+
+> [!NOTE]
+> High sync frequency increases load on both the UniFi controller and NetBox worker processes.
+
+---
+
+## Security Notes
+
+- SSL verification defaults to true
+- Secrets are redacted in run history and audit logs
+- Timeouts, retries, and backoff are configurable
+
+> [!IMPORTANT]
+> If disabling SSL verification for testing, restrict access to the controller network.
+> Never disable SSL verification in production environments.
+
+---
 
 ## Documentation
 
@@ -93,20 +178,19 @@ Do not store UniFi credentials in `PLUGINS_CONFIG`.
 - [Wiki source pages](wiki/Home.md)
 - [GitHub Wiki](https://github.com/unifi2netbox/netbox-unifi-sync/wiki)
 
-## Security Notes
-
-- SSL verification defaults to `true`
-- Secrets are redacted in run history and audit logs
-- Timeouts/retries/backoff are configurable
+---
 
 ## Maintainer: Release to PyPI
 
 1. Bump version in:
-   - `pyproject.toml` (`[project].version`)
-   - `netbox_unifi_sync/version.py` (`__version__`)
+   - pyproject.toml (`[project].version`)
+   - netbox_unifi_sync/version.py (`__version__`)
 2. Configure PyPI Trusted Publisher (OIDC) for this repository/workflow.
 3. Create and push tag `vX.Y.Z`:
    - `git tag -a vX.Y.Z -m "Release vX.Y.Z"`
    - `git push origin vX.Y.Z`
 4. `release.yml` creates GitHub Release.
 5. `publish-python-package.yml` publishes package to PyPI when release is published.
+
+> [!CAUTION]
+> Version mismatch between pyproject.toml and version.py will break the release pipeline.

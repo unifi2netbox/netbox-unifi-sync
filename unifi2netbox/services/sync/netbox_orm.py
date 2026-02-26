@@ -211,19 +211,47 @@ class _Endpoint:
             logger.debug("ORM .all() error for %s: %s", self._model.__name__, exc)
             return []
 
+    @staticmethod
+    def _fk_fields(model) -> set[str]:
+        """
+        Return the set of ForeignKey field *names* (without the ``_id`` suffix)
+        on *model*.  Used to rewrite ``{'manufacturer': 5}`` →
+        ``{'manufacturer_id': 5}`` so Django never tries to resolve the
+        related instance during construction or validation.
+        """
+        try:
+            from django.db.models import ForeignKey
+            return {
+                f.name
+                for f in model._meta.get_fields()
+                if isinstance(f, ForeignKey)
+            }
+        except Exception:
+            return set()
+
     def create(self, payload: dict) -> "_OrmObject | None":
         """
         Create a new instance from a flat payload dict.
 
         Handles:
-        * ``xxx_id`` → FK field (pass as-is, Django handles it)
+        * ``xxx`` (FK name) with integer value → stored as ``xxx_id`` so Django
+          never attempts to resolve the related object during construction
         * ``content_types`` → ManyToMany (set after save)
         * ``scope_type`` string → ContentType lookup
         * ``custom_fields`` → stored in custom_field_data
+
+        We intentionally skip ``model.full_clean()`` because NetBox model
+        validators (e.g. ``_clean_custom_fields``) run against the full
+        NetBox runtime context and may raise ``ValidationError`` for
+        valid data when called on an unsaved instance outside a request
+        cycle.  The REST API uses DRF serialiser validation, not
+        ``full_clean()``, so we match that behaviour here.
         """
         m2m: dict[str, list] = {}
         direct: dict[str, Any] = {}
         custom_fields: dict[str, Any] = {}
+
+        fk_names = self._fk_fields(self._model)
 
         for key, value in payload.items():
             if key == "content_types":
@@ -239,6 +267,10 @@ class _Endpoint:
                     direct["scope_type"] = ct
                 except Exception:
                     pass  # skip unsupported scope_type
+            elif key in fk_names and isinstance(value, int):
+                # Rewrite FK name to attname so Django stores the PK directly
+                # without trying to resolve the related instance.
+                direct[f"{key}_id"] = value
             else:
                 direct[key] = value
 
@@ -247,12 +279,12 @@ class _Endpoint:
 
         try:
             instance = self._model(**direct)
-            instance.full_clean()
+            # Skip full_clean(): NetBox model validators require a fully
+            # initialised request context and may reject valid payloads on
+            # unsaved instances.  Django's save() enforces DB constraints
+            # (NOT NULL, UNIQUE) at the database level instead.
             instance.save()
         except Exception as exc:
-            # Re-raise as a generic RuntimeError so callers that catch
-            # pynetbox.core.query.RequestError will need updating, but at
-            # least we avoid importing pynetbox here.
             raise RuntimeError(
                 f"ORM create failed for {self._model.__name__}: {exc}"
             ) from exc

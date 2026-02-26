@@ -114,7 +114,19 @@ def get_postable_fields(base_url, token, url_path):
     The return value is a dict keyed by field name — callers only check
     ``'role' in fields`` vs ``'device_role' in fields``, so any truthy value
     for each key is sufficient.
+
+    A guaranteed minimum set of fields is always merged in after introspection
+    so that device creation never fails silently just because Django is not
+    available (e.g. during unit tests) or because introspection returns an
+    unexpected empty result.
     """
+    # Minimum field sets per path — must include all fields the caller branches on.
+    # NetBox 4.x renamed 'device_role' → 'role'; include both so the caller's
+    # ``if 'role' in available_fields`` check always wins on NB 4.x.
+    _GUARANTEED: dict[str, dict[str, bool]] = {
+        "dcim/devices": {"role": True, "status": True, "device_role": True},
+    }
+
     normalized_path = url_path.strip("/")
     cache_key = ("orm", normalized_path)
     with postable_fields_lock:
@@ -146,13 +158,17 @@ def get_postable_fields(base_url, token, url_path):
         logger.debug(f"Introspected {len(fields)} fields for {normalized_path}")
     except Exception as exc:
         logger.debug(f"Field introspection failed for {normalized_path}: {exc}")
-        # Safe fallback: assume modern NetBox 4.x field naming
-        if normalized_path == "dcim/devices":
-            fields = {"role": True, "status": True}
+
+    # Always merge in the guaranteed minimum so callers never get a false negative.
+    guaranteed = _GUARANTEED.get(normalized_path, {})
+    if guaranteed:
+        merged = {**guaranteed, **fields}  # introspected fields win over guaranteed
+    else:
+        merged = fields
 
     with postable_fields_lock:
-        postable_fields_cache[cache_key] = fields
-    return fields
+        postable_fields_cache[cache_key] = merged
+    return merged
 
 
 def _infer_prefix_from_unifi_network_cache(ip_str):

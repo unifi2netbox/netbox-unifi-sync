@@ -4,6 +4,57 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+## [0.2.2] - 2026-02-26
+
+### Fixed — **Device types and devices not created (ORM create regression)**
+
+Two bugs in the Django ORM adapter (`netbox_orm.py`) introduced in v0.2.0
+prevented all new Device Types and Devices from being created during sync.
+
+#### Bug 1 — `full_clean()` rejected valid payloads
+
+`_Endpoint.create()` called `instance.full_clean()` before `instance.save()`.
+NetBox model validators (notably `_clean_custom_fields()`) run against the full
+NetBox runtime context and raise `ValidationError` on unsaved instances even
+when the payload is valid.  The NetBox REST API uses DRF serialiser validation,
+not `model.full_clean()`, so the ORM adapter must match that behaviour.
+
+**Fix:** Removed `full_clean()` call.  Django's `save()` enforces `NOT NULL` and
+`UNIQUE` constraints at the database level.
+
+#### Bug 2 — FK fields passed as integers caused descriptor errors
+
+Payloads like `{'manufacturer': 5, 'model': 'UAP-AC-Pro', ...}` assigned an
+integer directly to a `ForeignKey` field.  Under Django 5 (used by NetBox 4.x),
+the FK descriptor can attempt to resolve the related instance during model
+construction, which may raise `ValueError` or trigger an unexpected DB query.
+
+**Fix:** `_Endpoint.create()` now introspects `model._meta` to find all
+`ForeignKey` fields and rewrites `{'field': int}` → `{'field_id': int}` before
+constructing the model instance.  This is the canonical Django ORM pattern.
+
+#### Bug 3 — `get_postable_fields()` fallback was insufficient
+
+If Django model introspection failed (e.g. during tests or early boot),
+`get_postable_fields('', '', 'dcim/devices')` returned `{}`.  The device
+creation code checked `if 'role' in available_fields` and silently skipped
+every device with log message *"Could not determine the syntax for the role"*.
+
+**Fix:** A guaranteed minimum field set is now always merged in after
+introspection so callers never get a false negative:
+```python
+_GUARANTEED = {
+    "dcim/devices": {"role": True, "status": True, "device_role": True},
+}
+```
+
+### Files changed
+
+| File | Change |
+|---|---|
+| `unifi2netbox/services/sync/netbox_orm.py` | Remove `full_clean()`; add `_fk_fields()` to rewrite FK ints to `_id` attnames |
+| `unifi2netbox/services/sync_engine.py` | Add `_GUARANTEED` field set to `get_postable_fields()` |
+
 ## [0.2.1] - 2026-02-26
 
 ### Fixed — **NetBox plugin entry point added to wheel**

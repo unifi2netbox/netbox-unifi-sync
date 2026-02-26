@@ -8,6 +8,12 @@ from django.db import models
 from django.urls import reverse
 from django.utils import timezone
 
+try:
+    from netbox.models.features import ChangeLoggingMixin as _ChangeLoggingMixin
+except ImportError:  # pragma: no cover
+    class _ChangeLoggingMixin:  # type: ignore[no-redef]
+        """No-op fallback when running outside NetBox (tests, build)."""
+
 class AuthMode(models.TextChoices):
     API_KEY = "api_key", "API key"
     LOGIN = "login", "Login"
@@ -34,7 +40,7 @@ class SyncRunStatus(models.TextChoices):
     SKIPPED = "skipped", "Skipped"
 
 
-class GlobalSyncSettings(models.Model):
+class GlobalSyncSettings(_ChangeLoggingMixin, models.Model):
     singleton_key = models.CharField(max_length=32, unique=True, default="default")
 
     enabled = models.BooleanField(default=True)
@@ -128,7 +134,7 @@ class GlobalSyncSettings(models.Model):
     specs_store_max_workers = models.PositiveIntegerField(default=8)
     specs_write_cache = models.BooleanField(default=False)
 
-    updated = models.DateTimeField(auto_now=True)
+    # created / last_updated are provided by ChangeLoggingMixin
 
     class Meta:
         ordering = ("singleton_key",)
@@ -186,7 +192,7 @@ class GlobalSyncSettings(models.Model):
             raise ValidationError(errors)
 
 
-class UnifiController(models.Model):
+class UnifiController(_ChangeLoggingMixin, models.Model):
     name = models.CharField(max_length=100, unique=True)
     base_url = models.URLField(max_length=255, unique=True)
     enabled = models.BooleanField(default=True)
@@ -209,8 +215,7 @@ class UnifiController(models.Model):
     last_test_status = models.CharField(max_length=16, blank=True)
     last_test_error = models.TextField(blank=True)
 
-    created = models.DateTimeField(auto_now_add=True)
-    updated = models.DateTimeField(auto_now=True)
+    # created / last_updated are provided by ChangeLoggingMixin
 
     class Meta:
         ordering = ("name",)
@@ -243,7 +248,7 @@ class UnifiController(models.Model):
             raise ValidationError(errors)
 
 
-class SiteMapping(models.Model):
+class SiteMapping(_ChangeLoggingMixin, models.Model):
     controller = models.ForeignKey(
         UnifiController,
         on_delete=models.CASCADE,

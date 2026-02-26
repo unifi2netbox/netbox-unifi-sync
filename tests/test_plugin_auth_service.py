@@ -55,6 +55,7 @@ def test_build_client_uses_login_fields(monkeypatch):
     assert calls["password"] == "secret"
     assert calls["mfa_secret"] == "mfa"
     assert "api_key" not in calls
+    assert calls["verify_ssl"] is True
 
 
 def test_build_client_disables_fallback_in_api_key_mode(monkeypatch):
@@ -77,3 +78,45 @@ def test_build_client_disables_fallback_in_api_key_mode(monkeypatch):
     assert calls["api_key"] == "abc123"
     assert calls["allow_login_fallback"] is False
     assert "username" not in calls
+    assert calls["verify_ssl"] is True
+
+
+def test_build_client_passes_verify_ssl_false(monkeypatch):
+    calls = {}
+
+    class DummyUnifi:
+        def __init__(self, **kwargs):
+            calls.update(kwargs)
+
+    monkeypatch.setattr("netbox_unifi_sync.services.auth.Unifi", DummyUnifi)
+    settings = UnifiAuthSettings(
+        auth_mode="api_key",
+        api_key="abc123",
+        api_key_header="X-API-KEY",
+        username="",
+        password="",
+        mfa_secret="",
+        verify_ssl=False,
+    )
+    settings.build_client(base_url="https://unifi.local")
+    assert calls["verify_ssl"] is False
+
+
+def test_from_plugin_settings_reads_verify_ssl():
+    plugin_settings = {
+        "auth_mode": "api_key",
+        "unifi_api_key": "mykey",
+        "unifi_api_key_header": "X-API-KEY",
+        "verify_ssl": False,
+    }
+    settings = UnifiAuthSettings.from_plugin_settings(plugin_settings)
+    assert settings.verify_ssl is False
+
+
+def test_from_plugin_settings_verify_ssl_defaults_to_true():
+    plugin_settings = {
+        "auth_mode": "api_key",
+        "unifi_api_key": "mykey",
+    }
+    settings = UnifiAuthSettings.from_plugin_settings(plugin_settings)
+    assert settings.verify_ssl is True

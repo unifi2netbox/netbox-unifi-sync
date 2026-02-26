@@ -29,6 +29,13 @@ All notable changes to this project are documented in this file.
 ### Removed
 - Raw auto-generated git-log changelog format replaced by structured release notes.
 
+## [0.1.7] - 2026-02-26
+
+### Fixed
+- `verify_ssl` controller setting now propagates correctly through the dry-run preflight path (`auth.py` `build_client()`).
+  Previously `UnifiAuthSettings` had no `verify_ssl` field, so dry-run connection tests always used `verify_ssl=True`
+  regardless of the controller's setting, causing SSL failures on self-signed certificates during dry-run.
+
 ## [0.1.6] - 2026-02-26
 
 ### Fixed

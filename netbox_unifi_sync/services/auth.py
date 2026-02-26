@@ -23,6 +23,7 @@ class UnifiAuthSettings:
     username: str
     password: str
     mfa_secret: str
+    verify_ssl: bool = True
 
     @classmethod
     def from_plugin_settings(cls, plugin_settings: dict[str, Any]) -> "UnifiAuthSettings":
@@ -32,6 +33,8 @@ class UnifiAuthSettings:
         username = str(resolve_secret_value(plugin_settings.get("unifi_username") or "")).strip()
         password = str(resolve_secret_value(plugin_settings.get("unifi_password") or "")).strip()
         mfa_secret = str(resolve_secret_value(plugin_settings.get("unifi_mfa_secret") or "")).strip()
+        verify_ssl_raw = plugin_settings.get("verify_ssl")
+        verify_ssl = bool(verify_ssl_raw) if verify_ssl_raw is not None else True
         return cls(
             auth_mode=auth_mode,
             api_key=api_key,
@@ -39,6 +42,7 @@ class UnifiAuthSettings:
             username=username,
             password=password,
             mfa_secret=mfa_secret,
+            verify_ssl=verify_ssl,
         )
 
     def validate(self) -> None:
@@ -59,6 +63,7 @@ class UnifiAuthSettings:
                 api_key=self.api_key,
                 api_key_header=self.api_key_header or "X-API-KEY",
                 allow_login_fallback=False,
+                verify_ssl=self.verify_ssl,
             )
         logger.debug("Building UniFi client using login auth")
         return Unifi(
@@ -66,4 +71,5 @@ class UnifiAuthSettings:
             username=self.username,
             password=self.password,
             mfa_secret=self.mfa_secret or None,
+            verify_ssl=self.verify_ssl,
         )

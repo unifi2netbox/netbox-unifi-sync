@@ -239,6 +239,9 @@ class _Endpoint:
         * ``content_types`` → ManyToMany (set after save)
         * ``scope_type`` string → ContentType lookup
         * ``custom_fields`` → stored in custom_field_data
+        * ``a_terminations`` / ``b_terminations`` (Cable) → creates CableTermination
+          rows after the Cable is saved (pynetbox REST API format:
+          ``[{"object_type": "dcim.interface", "object_id": <id>}]``)
 
         We intentionally skip ``model.full_clean()`` because NetBox model
         validators (e.g. ``_clean_custom_fields``) run against the full
@@ -250,6 +253,8 @@ class _Endpoint:
         m2m: dict[str, list] = {}
         direct: dict[str, Any] = {}
         custom_fields: dict[str, Any] = {}
+        # Cable terminations: {"A": [...], "B": [...]}
+        cable_terminations: dict[str, list] = {}
 
         fk_names = self._fk_fields(self._model)
 
@@ -267,6 +272,12 @@ class _Endpoint:
                     direct["scope_type"] = ct
                 except Exception:
                     pass  # skip unsupported scope_type
+            elif key == "a_terminations" and isinstance(value, list):
+                # Cable A-end terminations — handled after save
+                cable_terminations["A"] = value
+            elif key == "b_terminations" and isinstance(value, list):
+                # Cable B-end terminations — handled after save
+                cable_terminations["B"] = value
             elif key in fk_names and isinstance(value, int):
                 # Rewrite FK name to attname so Django stores the PK directly
                 # without trying to resolve the related instance.
@@ -306,6 +317,36 @@ class _Endpoint:
                         field.add(item)
                     except Exception:
                         pass
+
+        # Create CableTermination rows for Cable a_terminations / b_terminations.
+        # Each entry is {"object_type": "dcim.interface", "object_id": <int>}.
+        if cable_terminations:
+            try:
+                from django.contrib.contenttypes.models import ContentType
+                from dcim.models import CableTermination
+                for cable_end, terminations in cable_terminations.items():
+                    for term in terminations:
+                        obj_type_str = term.get("object_type", "")
+                        obj_id = term.get("object_id")
+                        if not obj_type_str or obj_id is None:
+                            continue
+                        try:
+                            app_label, model_name = obj_type_str.split(".", 1)
+                            ct = ContentType.objects.get(app_label=app_label, model=model_name)
+                            CableTermination.objects.create(
+                                cable=instance,
+                                cable_end=cable_end,
+                                termination_type=ct,
+                                termination_id=obj_id,
+                            )
+                        except Exception as exc:
+                            logger.warning(
+                                "ORM: could not create CableTermination "
+                                "(cable=%s end=%s type=%s id=%s): %s",
+                                instance.pk, cable_end, obj_type_str, obj_id, exc,
+                            )
+            except ImportError:
+                logger.debug("ORM: CableTermination not available — skipping terminations")
 
         return _wrap(instance)
 

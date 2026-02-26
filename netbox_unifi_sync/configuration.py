@@ -33,9 +33,9 @@ DEFAULT_SETTINGS: dict[str, Any] = {
     "unifi_api_key_header": "X-API-KEY",
     "username": "",
     "unifi_username": "",
-    "password": "",
-    "unifi_password": "",
-    "unifi_mfa_secret": "",
+    "password": "",  # nosec B105 - empty default, not a hardcoded credential
+    "unifi_password": "",  # nosec B105
+    "unifi_mfa_secret": "",  # nosec B105
     "verify_ssl": True,
     "unifi_verify_ssl": True,
     "unifi_persist_session": True,

@@ -55,8 +55,30 @@ class _OrmObject:
         # Expose custom_field_data as 'custom_fields' (pynetbox naming)
         if name == "custom_fields":
             return getattr(instance, "custom_field_data", {}) or {}
-        # FK fields: return the related object directly (already an ORM obj)
-        return getattr(instance, name)
+        value = getattr(instance, name)
+        # Normalise ContentType FK accessors to "app_label.model_name" strings
+        # so callers can do:  if obj.assigned_object_type == "dcim.interface"
+        # (pynetbox returns strings; Django returns ContentType instances)
+        if name in _OrmObject._CONTENT_TYPE_FIELDS:
+            if value is not None and not isinstance(value, str):
+                try:
+                    # ContentType has app_label + model attributes
+                    return f"{value.app_label}.{value.model}"
+                except AttributeError:
+                    return str(value)
+        return value
+
+    # Fields whose "name" accessor is a GenericForeignKey; the real DB column
+    # that stores the ContentType FK is ``<name>_id``.  When callers set these
+    # with a "app_label.model" string (pynetbox REST payload style) we
+    # transparently resolve it to a ContentType instance so Django is happy.
+    _CONTENT_TYPE_FIELDS = frozenset({"assigned_object_type", "scope_type", "termination_type"})
+
+    # FK fields where callers pass an integer PK using the *field name* (without
+    # the ``_id`` suffix).  Django requires either ``field_id = int`` or
+    # ``field = <model_instance>``; assigning an int to the bare FK name raises
+    # ValueError.  We rewrite these automatically.
+    _INT_FK_FIELDS = frozenset({"primary_ip4", "primary_ip6"})
 
     def __setattr__(self, name: str, value):
         if name == "_instance":
@@ -69,6 +91,20 @@ class _OrmObject:
             if isinstance(value, dict):
                 existing.update(value)
                 instance.custom_field_data = existing
+            return
+        if name in _OrmObject._CONTENT_TYPE_FIELDS and isinstance(value, str) and "." in value:
+            # Convert "app_label.model_name" string → ContentType instance
+            try:
+                from django.contrib.contenttypes.models import ContentType
+                app_label, model_name = value.split(".", 1)
+                value = ContentType.objects.get(app_label=app_label, model=model_name)
+            except Exception:
+                pass  # fall through and let Django handle/reject it
+        if name in _OrmObject._INT_FK_FIELDS and isinstance(value, int):
+            # Rewrite bare FK name to attname (primary_ip4 → primary_ip4_id)
+            # so Django stores the PK directly without trying to resolve the
+            # related instance.
+            setattr(instance, f"{name}_id", value)
             return
         setattr(instance, name, value)
 
@@ -162,16 +198,16 @@ class _Endpoint:
                     translated["prefix__net_contains_or_equals"] = str(value)
                 except Exception:
                     translated["prefix__contains"] = str(value)
-            elif key == "scope_type":
-                # pynetbox passes scope_type as string like "dcim.site";
-                # Django uses a ContentType FK.
+            elif key in _OrmObject._CONTENT_TYPE_FIELDS and isinstance(value, str) and "." in value:
+                # Convert "app_label.model_name" string → ContentType instance.
+                # Covers scope_type, assigned_object_type, termination_type.
                 try:
                     from django.contrib.contenttypes.models import ContentType
                     app_label, model_name = str(value).split(".", 1)
                     ct = ContentType.objects.get(app_label=app_label, model=model_name)
-                    translated["scope_type"] = ct
+                    translated[key] = ct
                 except Exception:
-                    pass  # silently ignore unsupported scope filters
+                    pass  # silently ignore unresolvable content-type strings
             elif key == "scope_id":
                 translated["scope_id"] = value
             else:
@@ -237,7 +273,7 @@ class _Endpoint:
         * ``xxx`` (FK name) with integer value → stored as ``xxx_id`` so Django
           never attempts to resolve the related object during construction
         * ``content_types`` → ManyToMany (set after save)
-        * ``scope_type`` string → ContentType lookup
+        * ``scope_type`` / ``assigned_object_type`` string → ContentType lookup
         * ``custom_fields`` → stored in custom_field_data
         * ``a_terminations`` / ``b_terminations`` (Cable) → creates CableTermination
           rows after the Cable is saved (pynetbox REST API format:
@@ -264,14 +300,16 @@ class _Endpoint:
                 m2m["content_types"] = value
             elif key == "custom_fields" and isinstance(value, dict):
                 custom_fields = value
-            elif key == "scope_type" and isinstance(value, str):
+            elif key in _OrmObject._CONTENT_TYPE_FIELDS and isinstance(value, str) and "." in value:
+                # Convert "app_label.model_name" → ContentType instance.
+                # Covers scope_type, assigned_object_type, termination_type.
                 try:
                     from django.contrib.contenttypes.models import ContentType
                     app_label, model_name = value.split(".", 1)
                     ct = ContentType.objects.get(app_label=app_label, model=model_name)
-                    direct["scope_type"] = ct
+                    direct[key] = ct
                 except Exception:
-                    pass  # skip unsupported scope_type
+                    pass  # skip unresolvable content-type strings
             elif key == "a_terminations" and isinstance(value, list):
                 # Cable A-end terminations — handled after save
                 cable_terminations["A"] = value

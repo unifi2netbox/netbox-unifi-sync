@@ -433,7 +433,7 @@ def ping_ip(ip_str: str, count: int = 2, timeout: int = 1) -> bool:
         safe_count = max(1, min(5, int(count)))
         safe_timeout = max(1, min(5, int(timeout)))
         cmd = ["ping", "-c", str(safe_count), "-W", str(safe_timeout), target_ip]
-        result = subprocess.run(  # nosec B603
+        result = subprocess.run(  # nosec B603,B607
             cmd,
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,

@@ -319,10 +319,6 @@ class _Endpoint:
             return set()
 
     def create(self, payload: dict | None = None, **kwargs) -> "_OrmObject | None":
-        if payload is None:
-            payload = kwargs
-        elif kwargs:
-            payload = {**payload, **kwargs}
         """
         Create a new instance from a flat payload dict.
 
@@ -343,6 +339,10 @@ class _Endpoint:
         cycle.  The REST API uses DRF serialiser validation, not
         ``full_clean()``, so we match that behaviour here.
         """
+        if payload is None:
+            payload = kwargs
+        elif kwargs:
+            payload = {**payload, **kwargs}
         m2m: dict[str, list] = {}
         direct: dict[str, Any] = {}
         custom_fields: dict[str, Any] = {}

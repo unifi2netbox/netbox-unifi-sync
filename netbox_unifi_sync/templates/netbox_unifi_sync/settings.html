@@ -168,6 +168,15 @@
 
       <div class="col">
         <div class="form-check">
+          {{ form.sync_client_ips }}
+          <label class="form-check-label" for="{{ form.sync_client_ips.id_for_label }}">Sync client IPs</label>
+          <div class="text-muted small">Create IPAddress entries for UniFi clients (tagged <em>unifi-client</em>).</div>
+          {% for e in form.sync_client_ips.errors %}<div class="text-danger small mt-1">{{ e }}</div>{% endfor %}
+        </div>
+      </div>
+
+      <div class="col">
+        <div class="form-check">
           {{ form.sync_stale_cleanup }}
           <label class="form-check-label" for="{{ form.sync_stale_cleanup.id_for_label }}">{{ form.sync_stale_cleanup.label }}</label>
           {% if form.sync_stale_cleanup.help_text %}<div class="form-text text-muted">{{ form.sync_stale_cleanup.help_text }}</div>{% endif %}

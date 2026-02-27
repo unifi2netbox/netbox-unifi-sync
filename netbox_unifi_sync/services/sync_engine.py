@@ -1160,6 +1160,181 @@ def sync_site_wlans(nb, site_obj, nb_site, tenant):
                     logger.warning(f"Failed to update wireless LAN '{ssid}': {e}")
 
 
+def sync_client_ips(nb, site_obj, nb_site, tenant):
+    """Sync UniFi client IP addresses to NetBox IPAM.
+
+    Creates/updates IPAddress objects tagged unifi-client for all online UniFi
+    clients. IPs are matched to NetBox interfaces by MAC address. Stale entries
+    (offline > 24h or MAC changed) are deleted automatically.
+    """
+    import time as _time
+
+    if os.getenv("SYNC_CLIENT_IPS", "false").strip().lower() not in ("true", "1", "yes"):
+        return
+
+    OFFLINE_THRESHOLD = 86400  # 24 hours
+    TAG_NAME = "unifi-client"
+
+    try:
+        clients = site_obj.client.all()
+    except Exception as e:
+        logger.warning(f"Could not fetch clients for site {nb_site.name}: {e}")
+        return
+
+    if not clients:
+        logger.debug(f"No clients found for site {nb_site.name}")
+        return
+
+    client_tag = ensure_tag(nb, TAG_NAME, slug="unifi-client", color="00bcd4")
+    if not client_tag:
+        logger.warning("Could not get or create unifi-client tag. Skipping client IP sync.")
+        return
+
+    now_ts = _time.time()
+
+    # Build lookup: normalized-MAC -> client data (active clients only, last_seen < 24h)
+    active_clients = {}
+    for client in clients:
+        mac_raw = client.get("mac") or ""
+        ip_str = client.get("ip") or client.get("fixed_ip") or ""
+        if not mac_raw or not ip_str:
+            continue
+
+        # Normalize MAC to uppercase colon-separated XX:XX:XX:XX:XX:XX
+        mac_norm = mac_raw.upper().replace("-", ":").replace(".", ":")
+        if ":" not in mac_norm and len(mac_norm) == 12:
+            mac_norm = ":".join(mac_norm[i:i+2] for i in range(0, 12, 2))
+
+        last_seen = client.get("last_seen") or client.get("lastSeen") or now_ts
+        try:
+            last_seen = float(last_seen)
+        except (TypeError, ValueError):
+            last_seen = now_ts
+        if now_ts - last_seen > OFFLINE_THRESHOLD:
+            logger.debug(f"Client {mac_norm} offline > 24h; skipping.")
+            continue
+
+        hostname = (client.get("hostname") or client.get("name")
+                    or client.get("display_name") or mac_norm)
+        active_clients[mac_norm] = {"ip": ip_str, "mac": mac_norm,
+                                    "last_seen": last_seen, "hostname": hostname}
+
+    logger.debug(f"Site {nb_site.name}: {len(active_clients)} active clients with IPs")
+
+    # Sync each active client IP
+    for mac_norm, client_data in active_clients.items():
+        ip_str = client_data["ip"]
+        hostname = client_data["hostname"]
+        description = f"unifi-client:{mac_norm}"
+
+        try:
+            ipaddress.ip_address(ip_str)
+        except ValueError:
+            logger.debug(f"Client {mac_norm} has invalid IP {ip_str!r}; skipping.")
+            continue
+
+        # Find prefix to determine mask length
+        prefixes = list(nb.ipam.prefixes.filter(contains=ip_str))
+        if not prefixes:
+            logger.debug(f"No prefix found for client IP {ip_str}; skipping.")
+            continue
+        prefix_len = str(prefixes[0].prefix).split("/")[1]
+        ip_with_mask = f"{ip_str}/{prefix_len}"
+
+        # Find NetBox interface by MAC address
+        interface = None
+        try:
+            ifaces = nb.dcim.interfaces.filter(mac_address=mac_norm)
+            if ifaces:
+                interface = ifaces[0]
+        except Exception as e:
+            logger.debug(f"Interface lookup for MAC {mac_norm}: {e}")
+
+        try:
+            nb_ip = nb.ipam.ip_addresses.get(address=ip_with_mask)
+            if nb_ip:
+                needs_update = False
+                if getattr(nb_ip, "description", None) != description:
+                    nb_ip.description = description
+                    needs_update = True
+                if interface:
+                    cur_id = getattr(nb_ip, "assigned_object_id", None)
+                    cur_type = str(getattr(nb_ip, "assigned_object_type", "") or "")
+                    if cur_type != "dcim.interface" or str(cur_id or "") != str(interface.id):
+                        nb_ip.assigned_object_type = "dcim.interface"
+                        nb_ip.assigned_object_id = interface.id
+                        needs_update = True
+                cur_tags = [t.id for t in (nb_ip.tags or [])]
+                if client_tag.id not in cur_tags:
+                    nb_ip.tags = cur_tags + [client_tag.id]
+                    needs_update = True
+                if needs_update:
+                    nb_ip.save()
+                    logger.debug(f"Updated client IP {ip_with_mask} for {mac_norm}")
+            else:
+                payload = {
+                    "address": ip_with_mask,
+                    "tenant_id": tenant.id,
+                    "status": "dhcp",
+                    "description": description,
+                }
+                if interface:
+                    payload["assigned_object_type"] = "dcim.interface"
+                    payload["assigned_object_id"] = interface.id
+                nb_ip = nb.ipam.ip_addresses.create(payload)
+                if nb_ip:
+                    nb_ip.tags = [client_tag.id]
+                    nb_ip.save()
+                    logger.info(f"Created client IP {ip_with_mask} for {hostname} ({mac_norm})")
+        except Exception as e:
+            logger.warning(f"Could not sync client IP {ip_with_mask} for {mac_norm}: {e}")
+
+    # Cleanup: delete stale unifi-client tagged IPs that no longer have an active client
+    try:
+        from ipam.models import IPAddress as _IPAddress
+        from extras.models import Tag as _Tag
+        from django.contrib.contenttypes.models import ContentType
+        from dcim.models import Interface as _Interface
+
+        ct_iface = ContentType.objects.get(app_label="dcim", model="interface")
+        tag_qs = _Tag.objects.filter(name=TAG_NAME)
+        if not tag_qs.exists():
+            return
+        tag_obj = tag_qs.first()
+
+        for nb_ip in _IPAddress.objects.filter(tags=tag_obj):
+            # Only touch IPs assigned to interfaces of devices at this site
+            if nb_ip.assigned_object_type_id != ct_iface.id or not nb_ip.assigned_object_id:
+                continue
+            try:
+                iface = _Interface.objects.select_related("device__site").get(
+                    pk=nb_ip.assigned_object_id)
+                if not iface.device or iface.device.site_id != nb_site.id:
+                    continue
+            except _Interface.DoesNotExist:
+                continue
+
+            # Parse stored MAC from description
+            desc = nb_ip.description or ""
+            stored_mac = None
+            if desc.startswith("unifi-client:"):
+                stored_mac = desc.split(":", 1)[1].strip().upper()
+
+            ip_plain = str(nb_ip.address).split("/")[0]
+
+            # Keep if MAC still active AND IP matches
+            if stored_mac and stored_mac in active_clients:
+                if active_clients[stored_mac]["ip"] == ip_plain:
+                    continue  # still valid
+
+            try:
+                nb_ip.delete()
+                logger.info(f"Deleted stale client IP {nb_ip.address} (MAC {stored_mac})")
+            except Exception as e:
+                logger.warning(f"Could not delete stale client IP {nb_ip.address}: {e}")
+    except Exception as e:
+        logger.warning(f"Client IP cleanup failed for site {nb_site.name}: {e}")
+
 def map_unifi_port_to_netbox_type(port, api_style="integration"):
     """Map a UniFi port dict to a NetBox interface type string."""
     if api_style == "legacy":
@@ -1526,6 +1701,197 @@ def sync_device_interfaces(nb, nb_device, device, api_style="integration", unifi
         except Exception as e:
             logger.warning(f"Failed to delete stale interface '{iface_name}' from {device_name}: {e}")
 
+
+def sync_gateway_interfaces(nb, nb_device, device, site_obj, tenant, vrf):
+    """Sync VLAN and management interfaces + IPs for a UniFi Security Appliance (GATEWAY).
+
+    For each network config with an IP subnet and gateway IP, creates a virtual
+    interface (vlan{vlan_id}, wan, or mgmt) on the NetBox device and assigns the
+    gateway IP. The management IP (device_ip) is set as primary_ip4.
+    """
+    device_name = get_device_name(device)
+    device_ip = get_device_ip(device)
+
+    try:
+        network_configs = site_obj.network_conf.all()
+    except Exception as e:
+        logger.warning(f"Could not fetch network configs for {device_name}: {e}")
+        return
+
+    if not network_configs:
+        logger.debug(f"No network configs for gateway {device_name}")
+        return
+
+    primary_ip_set = False
+
+    for net in network_configs:
+        # Normalize field names across Integration API (camelCase) and Legacy API (snake_case)
+        ip_subnet = (net.get("ipSubnet") or net.get("ip_subnet")
+                     or net.get("subnet") or net.get("ipv4_subnet") or "")
+        gateway_ip = (net.get("gatewayIp") or net.get("gateway")
+                      or net.get("gateway_ip") or "")
+        vlan_id_raw = net.get("vlanId") or net.get("vlan") or net.get("vlan_id")
+        net_name = net.get("name") or net.get("purpose") or "unknown"
+        purpose = (net.get("purpose") or net.get("type") or "").lower()
+
+        if not ip_subnet:
+            continue
+
+        # Extract gateway IP from ip_subnet if not provided separately
+        # ip_subnet can be "192.168.1.1/24" (gw/mask) or "192.168.1.0/24" (network/mask)
+        if not gateway_ip and "/" in ip_subnet:
+            candidate = ip_subnet.split("/")[0]
+            try:
+                ipaddress.ip_address(candidate)
+                gateway_ip = candidate
+            except ValueError:
+                pass
+
+        if not gateway_ip:
+            continue
+
+        # Derive prefix length
+        prefix_len = "24"
+        try:
+            if "/" in ip_subnet:
+                network_obj = ipaddress.ip_network(ip_subnet, strict=False)
+                prefix_len = str(network_obj.prefixlen)
+        except ValueError:
+            pass
+
+        ip_with_mask = f"{gateway_ip}/{prefix_len}"
+
+        try:
+            vlan_id = int(vlan_id_raw) if vlan_id_raw else None
+        except (ValueError, TypeError):
+            vlan_id = None
+
+        # Determine interface name and type
+        if purpose in ("wan", "wan-failover"):
+            iface_name = "wan" if purpose == "wan" else "wan2"
+            description = "WAN"
+        elif vlan_id:
+            iface_name = f"vlan{vlan_id}"
+            description = net_name
+        else:
+            iface_name = "mgmt"
+            description = net_name
+
+        # Find associated VLAN object in NetBox
+        nb_vlan = None
+        if vlan_id:
+            try:
+                site_id = nb_device.site.id if nb_device.site else None
+                if site_id:
+                    nb_vlan = nb.ipam.vlans.get(vid=vlan_id, site_id=site_id)
+                if not nb_vlan:
+                    nb_vlan = nb.ipam.vlans.get(vid=vlan_id)
+            except Exception:
+                pass
+
+        # Get or create the virtual interface on the gateway device
+        interface = None
+        try:
+            interface = nb.dcim.interfaces.get(device_id=nb_device.id, name=iface_name)
+        except Exception:
+            pass
+
+        if not interface:
+            iface_payload = {
+                "device": nb_device.id,
+                "name": iface_name,
+                "type": "virtual",
+                "enabled": True,
+                "description": description,
+            }
+            if nb_vlan:
+                iface_payload["untagged_vlan"] = nb_vlan.id
+            try:
+                interface = nb.dcim.interfaces.create(iface_payload)
+                if interface:
+                    logger.info(f"Created gateway interface {iface_name!r} on {device_name}")
+            except Exception as e:
+                logger.warning(f"Could not create interface {iface_name!r} on {device_name}: {e}")
+                continue
+        else:
+            # Update VLAN link if it changed
+            if nb_vlan:
+                cur_vlan = getattr(interface, "untagged_vlan", None)
+                cur_vlan_id = None
+                if cur_vlan and not isinstance(cur_vlan, int):
+                    cur_vlan_id = getattr(cur_vlan, "id", None)
+                elif isinstance(cur_vlan, int):
+                    cur_vlan_id = cur_vlan
+                if cur_vlan_id != nb_vlan.id:
+                    try:
+                        interface.untagged_vlan = nb_vlan.id
+                        interface.save()
+                    except Exception as e:
+                        logger.debug(f"Could not update VLAN link for {iface_name}: {e}")
+
+        if not interface:
+            continue
+
+        # Get or create IPAddress for this gateway interface
+        nb_ip = None
+        try:
+            nb_ip = nb.ipam.ip_addresses.get(address=ip_with_mask)
+        except Exception:
+            pass
+
+        if not nb_ip:
+            ip_payload = {
+                "address": ip_with_mask,
+                "assigned_object_type": "dcim.interface",
+                "assigned_object_id": interface.id,
+                "tenant_id": tenant.id,
+                "status": "active",
+                "description": f"{device_name} {iface_name}",
+            }
+            if vrf:
+                ip_payload["vrf_id"] = vrf.id
+            try:
+                nb_ip = nb.ipam.ip_addresses.create(ip_payload)
+                if nb_ip:
+                    logger.info(f"Created gateway IP {ip_with_mask} on {device_name}/{iface_name}")
+            except Exception as e:
+                logger.warning(f"Could not create IP {ip_with_mask} for {device_name}/{iface_name}: {e}")
+        else:
+            # Bind to interface if not already bound correctly
+            cur_obj_id = getattr(nb_ip, "assigned_object_id", None)
+            cur_obj_type = str(getattr(nb_ip, "assigned_object_type", "") or "")
+            if cur_obj_type != "dcim.interface" or str(cur_obj_id or "") != str(interface.id):
+                try:
+                    nb_ip.assigned_object_type = "dcim.interface"
+                    nb_ip.assigned_object_id = interface.id
+                    nb_ip.save()
+                except Exception as e:
+                    logger.debug(f"Could not bind IP {ip_with_mask} to {iface_name}: {e}")
+
+        # Set primary_ip4 if this interface carries the device management IP
+        if nb_ip and device_ip and not primary_ip_set and gateway_ip == device_ip:
+            try:
+                nb_device.primary_ip4 = nb_ip.id
+                nb_device.save()
+                logger.info(f"Set primary_ip4 for gateway {device_name} to {ip_with_mask}")
+                primary_ip_set = True
+            except Exception as e:
+                logger.warning(f"Could not set primary_ip4 for {device_name}: {e}")
+
+    # Fallback: if management IP not matched via network configs, search all gateway IPs
+    if not primary_ip_set and device_ip:
+        try:
+            prefixes = list(nb.ipam.prefixes.filter(contains=device_ip))
+            if prefixes:
+                plen = str(prefixes[0].prefix).split("/")[1]
+                fallback_str = f"{device_ip}/{plen}"
+                nb_ip = nb.ipam.ip_addresses.get(address=fallback_str)
+                if nb_ip:
+                    nb_device.primary_ip4 = nb_ip.id
+                    nb_device.save()
+                    logger.info(f"Set fallback primary_ip4 for {device_name} to {fallback_str}")
+        except Exception as e:
+            logger.debug(f"Fallback primary_ip4 lookup for {device_name}: {e}")
 
 def get_device_features(device):
     """Normalize feature information from legacy and integration payloads."""
@@ -2094,8 +2460,15 @@ def process_device(unifi, nb, site, device, nb_ubiquity, tenant, unifi_device_ip
             except Exception as e:
                 logger.warning(f"Failed to sync interfaces for {device_name}: {e}")
 
-        # Add primary IP if available — skip routers/gateways (they manage their own IPs)
+        # Add primary IP if available.
+        # GATEWAY: sync VLAN interfaces + gateway IPs; ROUTER: skip (no network_conf access).
         role_key = infer_role_key_for_device(device)
+        if role_key == "GATEWAY" and nb_device and unifi_site_obj:
+            try:
+                sync_gateway_interfaces(nb, nb_device, device, unifi_site_obj, tenant, vrf)
+            except Exception as e:
+                logger.warning(f"Failed to sync gateway interfaces for {device_name}: {e}")
+            return
         if role_key in ("GATEWAY", "ROUTER"):
             logger.debug(f"Skipping IP assignment for {device_name} — device is a {role_key}")
             return
@@ -2319,6 +2692,13 @@ def process_site(unifi, nb, site_obj, site_display_name, nb_site, nb_ubiquity, t
                     sync_site_wlans(nb, site_obj, nb_site, tenant)
                 except Exception as e:
                     logger.warning(f"Failed to sync WLANs for site {site_display_name}: {e}")
+
+            # Sync client IPs to NetBox IPAM
+            if os.getenv("SYNC_CLIENT_IPS", "false").strip().lower() in ("true", "1", "yes"):
+                try:
+                    sync_client_ips(nb, site_obj, nb_site, tenant)
+                except Exception as e:
+                    logger.warning(f"Failed to sync client IPs for site {site_display_name}: {e}")
 
             # Auto-discover DHCP ranges from UniFi network configs
             if os.getenv("DHCP_AUTO_DISCOVER", "true").strip().lower() in ("true", "1", "yes"):

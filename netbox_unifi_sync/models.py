@@ -70,6 +70,13 @@ class GlobalSyncSettings(_ChangeLoggingMixin, models.Model):
     sync_wlans = models.BooleanField(default=True)
     sync_cables = models.BooleanField(default=True)
     sync_stale_cleanup = models.BooleanField(default=True)
+    sync_client_ips = models.BooleanField(
+        default=False,
+        help_text=(
+            "Sync UniFi client IP addresses to NetBox IPAM. "
+            "IPs are tagged unifi-client and deleted when the client goes offline for > 24 hours."
+        ),
+    )
 
     dhcp_auto_discover = models.BooleanField(default=True)
     dhcp_ranges = models.TextField(

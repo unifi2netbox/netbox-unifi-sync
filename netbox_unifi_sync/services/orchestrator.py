@@ -166,6 +166,7 @@ def _build_override(
         "sync_wlans": settings.sync_wlans,
         "sync_cables": settings.sync_cables,
         "sync_stale_cleanup": settings.sync_stale_cleanup,
+        "sync_client_ips": settings.sync_client_ips,
         "netbox_cleanup": cleanup_enabled,
         "cleanup_stale_days": settings.cleanup_grace_days,
 

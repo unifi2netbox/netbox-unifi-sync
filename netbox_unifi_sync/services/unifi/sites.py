@@ -1,4 +1,5 @@
 import logging
+from .client import Client
 from .device import Device
 from .networkconf import NetworkConf
 from .wlanconf import WlanConf
@@ -25,6 +26,7 @@ class Sites:
         self.device = Device(self.unifi, self)
         self.network_conf = NetworkConf(self.unifi, self)
         self.wlan_conf = WlanConf(self.unifi, self)
+        self.client = Client(self.unifi, self)
 
     def __str__(self):
         return f"{self.__class__.__name__}: {self.desc}"

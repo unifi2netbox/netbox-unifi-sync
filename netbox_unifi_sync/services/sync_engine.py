@@ -2132,7 +2132,7 @@ def process_device(unifi, nb, site, device, nb_ubiquity, tenant, unifi_device_ip
                 return
         for prefix in prefixes:
             # Extract the prefix length (mask) from the prefix
-            subnet_mask = prefix.prefix.split('/')[1]
+            subnet_mask = str(prefix.prefix).split('/')[1]
             ip = f'{device_ip}/{subnet_mask}'
             break
         if nb_device:

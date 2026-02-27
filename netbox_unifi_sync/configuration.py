@@ -126,6 +126,8 @@ _ENV_MAP: dict[str, str] = {
     "asset_tag_uppercase": "UNIFI_ASSET_TAG_UPPERCASE",
     "default_site_name": "NETBOX_DEFAULT_SITE",
     "rate_limit_per_second": "UNIFI_RATE_LIMIT_PER_SECOND",
+    "netbox_url": "NETBOX_URL",
+    "netbox_token": "NETBOX_TOKEN",
 }
 
 

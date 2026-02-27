@@ -25,6 +25,21 @@ _unifi_dhcp_ranges_lock = threading.Lock()
 _unifi_network_info = {}  # site_id -> list of dicts: {network, gateway, dns}
 _unifi_network_info_lock = threading.Lock()
 
+def _fetch_assigned_ips_for_network(network_str: str) -> list:
+    """Return list of IP strings already assigned in NetBox for the given network.
+    Extracted so tests can monkeypatch it without needing Django ORM."""
+    import ipaddress as _ipaddress
+    from ipam.models import IPAddress as _IPAddress
+    assigned_qs = _IPAddress.objects.filter(address__net_host_contained=network_str)
+    result = []
+    for ip_obj in assigned_qs:
+        try:
+            result.append(str(_ipaddress.ip_interface(str(ip_obj.address)).ip))
+        except Exception:
+            pass
+    return result
+
+
 
 def _get_static_prefix_lock(prefix_key) -> threading.Lock:
     with _static_prefix_locks_lock:
@@ -444,7 +459,7 @@ def find_available_static_ip(
     Returns IP string with mask (e.g. '192.168.1.5/24') or None.
     """
     dhcp_ranges = get_all_dhcp_ranges()
-    subnet_mask = prefix_obj.prefix.split("/")[1]
+    subnet_mask = str(prefix_obj.prefix).split("/")[1]
     prefix_id = prefix_obj.id
     vrf_id = getattr(vrf, "id", None) if vrf is not None else None
     prefix_key = f"{prefix_obj.prefix}|vrf:{vrf_id if vrf_id is not None else 'none'}"
@@ -459,28 +474,12 @@ def find_available_static_ip(
                 )
                 return None
 
-        # Enumerate candidate IPs via Django ORM: all host addresses in the prefix
-        # that are not already assigned in NetBox's ipam_ipaddress table.
+        # Enumerate candidate IPs: all host addresses in the prefix
+        # not already assigned in NetBox (via _fetch_assigned_ips_for_network).
         try:
             import ipaddress as _ipaddress
-            from ipam.models import IPAddress as _IPAddress
-
             network = _ipaddress.ip_network(prefix_obj.prefix, strict=False)
-            prefix_filter: dict = {"prefix": prefix_obj.prefix}
-            if vrf_id is not None:
-                prefix_filter["vrf_id"] = vrf_id
-
-            # Collect IPs already assigned within this prefix (without mask)
-            # Use __net_host_contained to scope to the prefix network
-            assigned_qs = _IPAddress.objects.filter(
-                address__net_host_contained=str(network)
-            )
-            assigned_set = set()
-            for ip_obj in assigned_qs:
-                try:
-                    assigned_set.add(str(_ipaddress.ip_interface(str(ip_obj.address)).ip))
-                except Exception:
-                    pass
+            assigned_set = set(_fetch_assigned_ips_for_network(str(network)))
 
             # Build candidate list from host addresses (skip network/broadcast)
             candidates = []

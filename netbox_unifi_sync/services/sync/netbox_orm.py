@@ -77,6 +77,13 @@ class _OrmObject:
         # Expose custom_field_data as 'custom_fields' (pynetbox naming)
         if name == "custom_fields":
             return getattr(instance, "custom_field_data", {}) or {}
+        # tags: django-taggit returns a _TaggableManager (not directly iterable).
+        # pynetbox returns a plain list of tag objects — match that behaviour.
+        if name == "tags":
+            try:
+                return list(instance.tags.all())
+            except Exception:
+                return []
         value = getattr(instance, name)
         # Normalise ContentType FK accessors to "app_label.model_name" strings
         # so callers can do:  if obj.assigned_object_type == "dcim.interface"
@@ -111,6 +118,15 @@ class _OrmObject:
             object.__setattr__(self, name, value)
             return
         instance = object.__getattribute__(self, "_instance")
+        # tags: django-taggit uses .set() on the manager; plain assignment is
+        # not supported.  Accept a list of Tag PKs or Tag instances (pynetbox
+        # passes PKs after reading tag IDs via __getattr__).
+        if name == "tags":
+            try:
+                instance.tags.set(value or [])
+            except Exception as exc:
+                logger.debug("ORM: could not set tags on %r: %s", instance, exc)
+            return
         if name == "custom_fields":
             # Merge into custom_field_data
             existing = getattr(instance, "custom_field_data", {}) or {}
@@ -302,7 +318,11 @@ class _Endpoint:
         except Exception:
             return set()
 
-    def create(self, payload: dict) -> "_OrmObject | None":
+    def create(self, payload: dict | None = None, **kwargs) -> "_OrmObject | None":
+        if payload is None:
+            payload = kwargs
+        elif kwargs:
+            payload = {**payload, **kwargs}
         """
         Create a new instance from a flat payload dict.
 

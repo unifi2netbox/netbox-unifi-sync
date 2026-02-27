@@ -922,14 +922,18 @@ def sync_site_vlans(nb, site_obj, nb_site, tenant):
         else:
             with _vlan_lock:
                 _vlan_cache[vlan_key] = existing
-            # Update name if changed
-            if existing.name != net_name:
+            # Update name and/or status if changed
+            desired_status = "active" if enabled else "reserved"
+            current_status = existing.status.value if hasattr(existing.status, "value") else str(existing.status)
+            changed = existing.name != net_name or current_status != desired_status
+            if changed:
                 try:
                     existing.name = net_name
+                    existing.status = desired_status
                     existing.save()
-                    logger.debug(f"Updated VLAN {vlan_id} name to '{net_name}'")
+                    logger.debug(f"Updated VLAN {vlan_id} name/status")
                 except Exception as e:
-                    logger.warning(f"Failed to update VLAN {vlan_id} name: {e}")
+                    logger.warning(f"Failed to update VLAN {vlan_id}: {e}")
 
 
 def _extract_prefix_cidr(net):
@@ -1144,6 +1148,10 @@ def sync_site_wlans(nb, site_obj, nb_site, tenant):
                 if current_status != desired_status:
                     existing.status = desired_status
                     changed = True
+            current_auth = existing.auth_type.value if hasattr(existing.auth_type, 'value') else str(existing.auth_type or "")
+            if current_auth != auth_type:
+                existing.auth_type = auth_type
+                changed = True
             if changed:
                 try:
                     existing.save()
@@ -1167,7 +1175,7 @@ def map_unifi_port_to_netbox_type(port, api_style="integration"):
             return "2.5gbase-t"
         return "1000base-t"
     # Integration API
-    max_speed = port.get("maxSpeed") or port.get("speed") or 0
+    max_speed = port.get("maxSpeed") or port.get("maxSpeedMbps") or port.get("speed") or port.get("speedMbps") or 0
     connector = (port.get("connector") or "").lower()
     if "sfp" in connector:
         if max_speed >= 10000:
@@ -1496,6 +1504,27 @@ def sync_device_interfaces(nb, nb_device, device, api_style="integration", unifi
                 logger.info(f"Deleted invalid interface '{iface_name}' from {device_name}")
             except Exception as e:
                 logger.warning(f"Failed to delete interface '{iface_name}' from {device_name}: {e}")
+
+    # Remove stale sync-created interfaces no longer present in UniFi data.
+    expected_iface_names = {p["name"] for p in ports}
+    if is_access_point_device(device):
+        expected_iface_names |= {r["name"] for r in normalize_radio_data(device, api_style)}
+    for iface_name, iface_obj in existing_interfaces.items():
+        if iface_name == "vlan.1" or iface_name in expected_iface_names or "?" in iface_name:
+            continue
+        name_lower = iface_name.lower()
+        is_poe_port = "(poe" in name_lower
+        is_sfp_port = name_lower.startswith("sfp ") and name_lower[4:].strip().isdigit()
+        is_eth_port = name_lower.startswith("eth") and name_lower[3:].isdigit()
+        if not (is_poe_port or is_sfp_port or is_eth_port):
+            continue
+        if iface_obj.cable:
+            continue
+        try:
+            iface_obj.delete()
+            logger.info(f"Deleted stale interface '{iface_name}' from {device_name}")
+        except Exception as e:
+            logger.warning(f"Failed to delete stale interface '{iface_name}' from {device_name}: {e}")
 
 
 def get_device_features(device):
@@ -2164,6 +2193,12 @@ def process_device(unifi, nb, site, device, nb_ubiquity, tenant, unifi_device_ip
                 nb_device.save()
             elif old_ip_str and old_ip_str == device_ip:
                 logger.debug(f"Device {device_name} IP unchanged ({device_ip}). Skipping IP update.")
+                if old_ip_obj and not getattr(old_ip_obj, 'description', None):
+                    try:
+                        old_ip_obj.description = device_name
+                        old_ip_obj.save()
+                    except Exception:
+                        pass
                 return
 
             interface = nb.dcim.interfaces.get(device_id=nb_device.id, name="vlan.1")
@@ -2199,6 +2234,7 @@ def process_device(unifi, nb, site, device, nb_ubiquity, tenant, unifi_device_ip
                         "address": ip,
                         "tenant_id": tenant.id,
                         "status": "active",
+                        "description": device_name,
                     }
                     if vrf_for_ip:
                         ip_payload["vrf_id"] = vrf_for_ip.id

@@ -1091,7 +1091,7 @@ def sync_site_wlans(nb, site_obj, nb_site, tenant):
         logger.debug(f"Wireless LAN groups not available: {e}")
 
     for wlan in wlans:
-        ssid = wlan.get("name") or wlan.get("x_passphrase") or "Unknown"
+        ssid = wlan.get("name") or "Unknown"
         enabled = wlan.get("enabled", True)
         security = wlan.get("security") or wlan.get("wpa_mode") or ""
         # Integration API: securityConfiguration.type
@@ -1994,6 +1994,15 @@ def process_device(unifi, nb, site, device, nb_ubiquity, tenant, unifi_device_ip
                     logger.info(f"Updated device type for {device_name} to {device_model}")
                 except pynetbox.core.query.RequestError as e:
                     logger.warning(f"Failed to update device type for {device_name}: {e}")
+            # Update role if it has changed (e.g. feature detection improved)
+            current_role_id = nb_device.role.id if nb_device.role else None
+            if nb_device_role and current_role_id != nb_device_role.id:
+                nb_device.role_id = nb_device_role.id
+                try:
+                    nb_device.save()
+                    logger.info(f"Updated role for {device_name} to {nb_device_role.name}")
+                except pynetbox.core.query.RequestError as e:
+                    logger.warning(f"Failed to update role for {device_name}: {e}")
             # Update asset tag from device name (ID/AID suffix)
             asset_tag = extract_asset_tag(device_name)
             if asset_tag and getattr(nb_device, 'asset_tag', None) != asset_tag:
@@ -2220,6 +2229,9 @@ def process_device(unifi, nb, site, device, nb_ubiquity, tenant, unifi_device_ip
                     logger.exception(
                         f"Failed to create interface vlan.1 for device {device_name} at site {site}: {e}")
                     return
+            if not interface:
+                logger.warning(f"Could not get or create vlan.1 interface for {device_name}. Skipping IP.")
+                return
             ip_get_filters = {"address": ip}
             if vrf_for_ip:
                 ip_get_filters["vrf_id"] = vrf_for_ip.id

@@ -1730,6 +1730,7 @@ def sync_gateway_interfaces(nb, nb_device, device, site_obj, tenant, vrf, unifi=
         return
 
     primary_ip_set = False
+    first_private_ip = None  # fallback: first LAN gateway IP in case device_ip is the WAN IP
 
     for net in network_configs:
         # Normalize field names across Integration API (camelCase) and Legacy API (snake_case)
@@ -1784,18 +1785,6 @@ def sync_gateway_interfaces(nb, nb_device, device, site_obj, tenant, vrf, unifi=
             iface_name = "mgmt"
             description = net_name
 
-        # Find associated VLAN object in NetBox
-        nb_vlan = None
-        if vlan_id:
-            try:
-                site_id = nb_device.site.id if nb_device.site else None
-                if site_id:
-                    nb_vlan = nb.ipam.vlans.get(vid=vlan_id, site_id=site_id)
-                if not nb_vlan:
-                    nb_vlan = nb.ipam.vlans.get(vid=vlan_id)
-            except Exception:
-                pass
-
         # Get or create the virtual interface on the gateway device
         interface = None
         try:
@@ -1811,8 +1800,6 @@ def sync_gateway_interfaces(nb, nb_device, device, site_obj, tenant, vrf, unifi=
                 "enabled": True,
                 "description": description,
             }
-            if nb_vlan:
-                iface_payload["untagged_vlan"] = nb_vlan.id
             try:
                 interface = nb.dcim.interfaces.create(iface_payload)
                 if interface:
@@ -1820,21 +1807,6 @@ def sync_gateway_interfaces(nb, nb_device, device, site_obj, tenant, vrf, unifi=
             except Exception as e:
                 logger.warning(f"Could not create interface {iface_name!r} on {device_name}: {e}")
                 continue
-        else:
-            # Update VLAN link if it changed
-            if nb_vlan:
-                cur_vlan = getattr(interface, "untagged_vlan", None)
-                cur_vlan_id = None
-                if cur_vlan and not isinstance(cur_vlan, int):
-                    cur_vlan_id = getattr(cur_vlan, "id", None)
-                elif isinstance(cur_vlan, int):
-                    cur_vlan_id = cur_vlan
-                if cur_vlan_id != nb_vlan.id:
-                    try:
-                        interface.untagged_vlan = nb_vlan.id
-                        interface.save()
-                    except Exception as e:
-                        logger.debug(f"Could not update VLAN link for {iface_name}: {e}")
 
         if not interface:
             continue
@@ -1885,7 +1857,15 @@ def sync_gateway_interfaces(nb, nb_device, device, site_obj, tenant, vrf, unifi=
             except Exception as e:
                 logger.warning(f"Could not set primary_ip4 for {device_name}: {e}")
 
-    # Fallback: if management IP not matched via network configs, search all gateway IPs
+        # Track the first private (LAN) IP as a fallback for when device_ip is the WAN IP
+        if nb_ip and first_private_ip is None and purpose not in ("wan", "wan-failover"):
+            try:
+                if ipaddress.ip_address(gateway_ip).is_private:
+                    first_private_ip = nb_ip
+            except ValueError:
+                pass
+
+    # Fallback 1: device_ip found in a NetBox prefix (covers cases where device IP is routable)
     if not primary_ip_set and device_ip:
         try:
             prefixes = list(nb.ipam.prefixes.filter(contains=device_ip))
@@ -1897,8 +1877,18 @@ def sync_gateway_interfaces(nb, nb_device, device, site_obj, tenant, vrf, unifi=
                     nb_device.primary_ip4 = nb_ip.id
                     nb_device.save()
                     logger.info(f"Set fallback primary_ip4 for {device_name} to {fallback_str}")
+                    primary_ip_set = True
         except Exception as e:
             logger.debug(f"Fallback primary_ip4 lookup for {device_name}: {e}")
+
+    # Fallback 2: device_ip is the WAN IP — use the first private LAN gateway IP instead
+    if not primary_ip_set and first_private_ip:
+        try:
+            nb_device.primary_ip4 = first_private_ip.id
+            nb_device.save()
+            logger.info(f"Set primary_ip4 for gateway {device_name} to {first_private_ip.address} (LAN fallback)")
+        except Exception as e:
+            logger.debug(f"LAN fallback primary_ip4 for {device_name}: {e}")
 
 def get_device_features(device):
     """Normalize feature information from legacy and integration payloads."""

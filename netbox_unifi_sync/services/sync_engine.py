@@ -1702,7 +1702,7 @@ def sync_device_interfaces(nb, nb_device, device, api_style="integration", unifi
             logger.warning(f"Failed to delete stale interface '{iface_name}' from {device_name}: {e}")
 
 
-def sync_gateway_interfaces(nb, nb_device, device, site_obj, tenant, vrf):
+def sync_gateway_interfaces(nb, nb_device, device, site_obj, tenant, vrf, unifi=None):
     """Sync VLAN and management interfaces + IPs for a UniFi Security Appliance (GATEWAY).
 
     For each network config with an IP subnet and gateway IP, creates a virtual
@@ -1713,10 +1713,17 @@ def sync_gateway_interfaces(nb, nb_device, device, site_obj, tenant, vrf):
     device_ip = get_device_ip(device)
 
     try:
-        network_configs = site_obj.network_conf.all()
+        network_configs = list(site_obj.network_conf.all() or [])
     except Exception as e:
         logger.warning(f"Could not fetch network configs for {device_name}: {e}")
         return
+
+    # Integration API can omit subnet/gateway fields on some records.
+    # Always merge legacy networkconf records to avoid missing data.
+    if unifi is not None:
+        legacy_networks = _fetch_legacy_networkconf(unifi, site_obj) or []
+        if legacy_networks:
+            network_configs.extend(legacy_networks)
 
     if not network_configs:
         logger.debug(f"No network configs for gateway {device_name}")
@@ -2465,7 +2472,7 @@ def process_device(unifi, nb, site, device, nb_ubiquity, tenant, unifi_device_ip
         role_key = infer_role_key_for_device(device)
         if role_key == "GATEWAY" and nb_device and unifi_site_obj:
             try:
-                sync_gateway_interfaces(nb, nb_device, device, unifi_site_obj, tenant, vrf)
+                sync_gateway_interfaces(nb, nb_device, device, unifi_site_obj, tenant, vrf, unifi=unifi)
             except Exception as e:
                 logger.warning(f"Failed to sync gateway interfaces for {device_name}: {e}")
             return

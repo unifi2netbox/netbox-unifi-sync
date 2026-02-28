@@ -6,9 +6,9 @@
 
 ```mermaid
 flowchart LR
-    U["UniFi Controller(s)"] --> C["unifi2netbox/services/unifi/unifi.py<br/>auth + request + retry"]
-    C --> E["unifi2netbox/services/sync_engine.py<br/>normalize + mapping"]
-    E --> N["NetBox API (pynetbox)"]
+    U["UniFi Controller(s)"] --> C["netbox_unifi_sync/services/unifi/unifi.py<br/>auth + request + retry"]
+    C --> E["netbox_unifi_sync/services/sync_engine.py<br/>normalize + mapping"]
+    E --> N["Django ORM (direct DB access)"]
     N --> D["NetBox DCIM/IPAM/Wireless"]
     P["Plugin UI Models<br/>Settings, Controllers, SiteMappings"] --> E
 ```
@@ -60,7 +60,7 @@ Default thread limits:
 
 ## Shared Caches / Locks
 
-Main thread-safe structures in `unifi2netbox/services/sync_engine.py`:
+Main thread-safe structures in `netbox_unifi_sync/services/sync_engine.py`:
 - `vrf_cache` + per-name locks
 - `_custom_field_cache`
 - `_tag_cache`

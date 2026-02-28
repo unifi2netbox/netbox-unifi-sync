@@ -2,7 +2,7 @@
 
 Device type enrichment combines two sources at runtime:
 
-1. `UNIFI_MODEL_SPECS` in `unifi2netbox/services/unifi/model_specs.py` (**46 hardcoded models**)
+1. `UNIFI_MODEL_SPECS` in `netbox_unifi_sync/services/unifi/model_specs.py` (**46 hardcoded models**)
 2. `data/ubiquiti_device_specs.json` (community bundle):
    - **173** entries indexed by model (`by_model`)
    - **166** entries indexed by part number (`by_part`)
@@ -53,7 +53,7 @@ python3 tools/refresh_unifi_specs.py --skip-store
 
 ## Synced Template Types
 
-`_sync_templates()` in `unifi2netbox/services/sync_engine.py` handles:
+`_sync_templates()` in `netbox_unifi_sync/services/sync_engine.py` handles:
 
 - interface templates (`dcim.interface_templates`)
 - console port templates (`dcim.console_port_templates`)

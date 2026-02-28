@@ -605,31 +605,9 @@ def set_unifi_device_static_ip(
 
     api_style = getattr(unifi, "api_style", "legacy")
     if api_style == "integration":
-        url = f"/sites/{site_api_id}/devices/{device_id}"
-        ip_config = {
-            "mode": "static",
-            "ip": static_ip,
-            "subnetMask": subnet_mask,
-            "gateway": gateway,
-        }
-        if dns_servers:
-            if len(dns_servers) >= 1:
-                ip_config["preferredDns"] = dns_servers[0]
-            if len(dns_servers) >= 2:
-                ip_config["alternateDns"] = dns_servers[1]
-        payload = {"ipConfig": ip_config}
-        try:
-            response = unifi.make_request(url, "PATCH", data=payload)
-            if isinstance(response, dict):
-                status = response.get("statusCode") or response.get("status")
-                if status and int(status) >= 400:
-                    logger.warning("Failed to set static IP on UniFi device via Integration API")
-                    return False
-            logger.info("Set static IP on UniFi device via Integration API")
-            return True
-        except Exception:
-            logger.warning("Failed to set static IP on UniFi device via Integration API request exception")
-            return False
+        # Integration API v1 does not expose a device IP-config endpoint (no PATCH on /devices/{id}).
+        # Fall through to the Legacy API which supports PUT /api/s/{site}/rest/device/{id}.
+        logger.debug("Integration API does not support static IP config; using Legacy API fallback")
 
     config_network = {
         "type": "static",

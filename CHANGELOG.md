@@ -4,6 +4,15 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+## [0.3.16] - 2026-03-01
+
+### Fixed
+
+- **`GlobalSyncSettings` thread/timeout bounds** — `PositiveIntegerField` allows 0 at the DB level. Setting `max_controller_threads`, `max_site_threads`, `max_device_threads`, or `request_timeout` to 0 causes thread pool failures or zero-second timeouts. Added `clean()` validation enforcing >= 1 for all four fields.
+- **Removed stale `pynetbox~=7.4.1` from `requirements.txt`** — pynetbox was removed from `pyproject.toml` in v0.2.0. Keeping it installed an unnecessary dependency.
+
+---
+
 ## [0.3.15] - 2026-02-28
 
 ### Added — **MAC address sync (NetBox 4.5 compatible)**

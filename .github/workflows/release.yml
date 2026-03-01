@@ -5,43 +5,67 @@ on:
     tags:
       - "v*"
 
-permissions:
-  contents: write
-
 jobs:
-  release:
+  lint:
     runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install lint tools
+        run: pip install ruff bandit
+
+      - name: Lint (ruff)
+        run: ruff check netbox_unifi_sync/
+
+      - name: Security scan (bandit)
+        run: bandit -r netbox_unifi_sync/ -ll
+
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12"]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install -e .
+          pip install pytest
+
+      - name: Run tests
+        run: pytest -q
+
+  release:
+    needs: [lint, test]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Resolve release metadata
-        id: meta
-        shell: bash
-        run: |
-          set -euo pipefail
-          TAG="${GITHUB_REF_NAME:-}"
-          if [ -z "${TAG}" ]; then
-            TAG="${GITHUB_REF##*/}"
-          fi
-          if [ -z "${TAG}" ]; then
-            echo "Could not resolve tag from ref."
-            exit 1
-          fi
-          PRERELEASE=false
-          if [[ "${TAG}" == *"-"* ]]; then
-            PRERELEASE=true
-          fi
-          echo "tag=${TAG}" >> "${GITHUB_OUTPUT}"
-          echo "prerelease=${PRERELEASE}" >> "${GITHUB_OUTPUT}"
-
       - name: Create GitHub release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ steps.meta.outputs.tag }}
           generate_release_notes: true
-          prerelease: ${{ steps.meta.outputs.prerelease }}
+          prerelease: ${{ contains(github.ref_name, '-') }}
 
   publish:
     needs: release
@@ -50,26 +74,23 @@ jobs:
       name: pypi
     permissions:
       id-token: write
+
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+          cache: pip
 
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install build twine
+      - name: Install build tools
+        run: pip install build twine
 
-      - name: Build distributable
+      - name: Build package
         run: python -m build
 
-      - name: Validate distributable metadata
+      - name: Validate package metadata
         run: twine check dist/*
 
       - name: Publish to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
-        with:
-          packages-dir: dist/

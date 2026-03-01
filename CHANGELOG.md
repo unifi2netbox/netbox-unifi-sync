@@ -4,6 +4,17 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+## [0.3.17] - 2026-03-01
+
+### Fixed
+
+- **Cleanup no longer aborts sync with mixed controller credentials** — previously, running with `--cleanup` when controllers used different credential sets raised `SyncConfigurationError` and stopped the entire sync. Cleanup is now safely skipped with a warning log and sync continues normally.
+- **Silent exception swallowing removed** — replaced bare `except Exception: pass` with specific exception types (`ValueError`, `LookupError`) and added `logger.debug` calls so failures are observable in logs rather than silently ignored.
+- **False-positive bandit B105 findings suppressed** — `# nosec B105` added to error-message strings that contained words like "password" or "token" but are not credentials.
+- **Stale test references updated** — `extract_dhcp_ranges_from_unifi` → `extract_dhcp_pools_from_unifi` in test suite; `_sync_interval_seconds` and `_netbox_verify_ssl` re-exported from `sync_engine` for test alias compatibility.
+
+---
+
 ## [0.3.16] - 2026-03-01
 
 ### Fixed

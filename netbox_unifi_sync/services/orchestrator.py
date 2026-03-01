@@ -17,6 +17,7 @@ from ..models import (
 )
 from .audit import sanitize_error
 from .runtime import auth_signature, redact_runtime, to_controller_runtime
+from ._validation import SyncConfigurationError, validate_runtime_config as _validate_runtime_config
 
 logger = logging.getLogger("netbox.plugins.netbox_unifi_sync.orchestrator")
 
@@ -35,10 +36,6 @@ _ROLE_KEY_ALIASES: dict[str, str] = {
     "OTHER": "UNKNOWN",
     "PHONE": "UNKNOWN",
 }
-
-
-class SyncConfigurationError(ValueError):
-    pass
 
 
 def _migrate_role_keys(roles: dict[str, str]) -> tuple[dict[str, str], bool]:
@@ -103,19 +100,6 @@ def _collect_site_mappings(controllers: list[UnifiController]) -> dict[str, str]
         mapping[row.unifi_site] = row.netbox_site
 
     return mapping
-
-
-def _validate_runtime_config(settings: GlobalSyncSettings, runtime_groups: dict[tuple[str, ...], list[dict[str, Any]]], cleanup_requested: bool):
-    if not settings.tenant_name.strip():
-        raise SyncConfigurationError("tenant_name must be configured.")
-    if not settings.netbox_roles:
-        raise SyncConfigurationError("netbox_roles must be configured.")
-
-    if cleanup_requested and len(runtime_groups) > 1:
-        raise SyncConfigurationError(
-            "Cleanup cannot run with mixed controller credentials. "
-            "Use common credentials for all enabled controllers or disable cleanup for this run."
-        )
 
 
 def _build_override(
@@ -305,7 +289,7 @@ def run_sync(*, dry_run: bool, cleanup_requested: bool, requested_by_id: int | N
         sig = auth_signature(runtime)
         grouped[sig].append({"controller": controller, "runtime": runtime})
 
-    _validate_runtime_config(settings, grouped, cleanup_requested)
+    effective_cleanup = _validate_runtime_config(settings, grouped, cleanup_requested)
 
     aggregate = {
         "mode": "dry-run" if dry_run else "sync",
@@ -315,6 +299,7 @@ def run_sync(*, dry_run: bool, cleanup_requested: bool, requested_by_id: int | N
         "details": {
             "groups": [],
             "cleanup_requested": cleanup_requested,
+            "cleanup_effective": effective_cleanup,
         },
     }
 
@@ -324,7 +309,7 @@ def run_sync(*, dry_run: bool, cleanup_requested: bool, requested_by_id: int | N
             settings,
             rows,
             site_mappings,
-            cleanup_enabled=bool(cleanup_requested),
+            cleanup_enabled=bool(effective_cleanup),
         )
 
         result = legacy_execute_sync(

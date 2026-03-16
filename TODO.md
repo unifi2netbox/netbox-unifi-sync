@@ -1,7 +1,7 @@
 # TODO — netbox-unifi-sync
 
-**Current version:** `v0.3.17` (tagged, pushed to GitHub, CI publishes to PyPI)
-**State:** ruff clean · bandit 0 issues (noisy nosec warnings, see P3) · 150 tests pass (1 skipped) · no uncommitted changes
+**Target version:** `v0.3.18` (release prep in working tree; tag not created yet)
+**State:** ruff clean · bandit 0 issues (noisy nosec warnings, see P3) · 152 tests pass (1 skipped) · release-prep changes pending tag/push
 
 ---
 
@@ -95,7 +95,7 @@ python3 -m bandit netbox_unifi_sync/configuration.py --format txt 2>&1 | grep "L
 
 | Risk | Detail |
 |---|---|
-| 74 broad `except Exception` in `sync_engine.py` | Majority are intentional guards around pynetbox/UniFi API calls that can throw unknown exception types. They are NOT security risks but reduce observability. All now log at debug level (as of v0.3.17). |
+| 74 broad `except Exception` in `sync_engine.py` | Majority are intentional guards around pynetbox/UniFi API calls that can throw unknown exception types. They are NOT security risks but reduce observability. All now log at debug level (as of v0.3.18 release prep). |
 | `configuration.py` nosec noise | bandit warns about `# nosec B105` on lines that don't trigger B105. Exit code is 0 (no real issues), but CI output is noisy. Harmless. |
 | Mixed credentials + cleanup | Cleanup is correctly skipped when controllers have different credentials. The underlying limitation (cleanup needs all serials from all controllers) is architectural and requires a major refactor to fully resolve. |
 | `sync_engine.py` size | At 3366 lines, adding features or fixing bugs is high-risk due to lack of module boundaries. Any PR touching sync_engine should be small and targeted. |

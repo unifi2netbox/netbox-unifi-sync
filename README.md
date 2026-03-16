@@ -273,12 +273,13 @@ Recommended intervals:
 1. Bump version in:
    - pyproject.toml (`[project].version`)
    - netbox_unifi_sync/version.py (`__version__`)
+   - netbox-plugin.yaml (`compatibility[].release`)
 2. Configure PyPI Trusted Publisher (OIDC) for this repository/workflow.
 3. Create and push tag `vX.Y.Z`:
    - `git tag -a vX.Y.Z -m "Release vX.Y.Z"`
    - `git push origin vX.Y.Z`
-4. `release.yml` creates GitHub Release.
-5. `publish-python-package.yml` publishes package to PyPI when release is published.
+4. `release.yml` runs on the tag push, gates on lint/tests, creates the GitHub Release, and publishes to PyPI.
+5. `publish-python-package.yml` is manual fallback only for re-publishing an existing tag.
 
 > [!CAUTION]
-> Version mismatch between pyproject.toml and version.py will break the release pipeline.
+> Version mismatch between pyproject.toml, version.py, and netbox-plugin.yaml will break the release pipeline.

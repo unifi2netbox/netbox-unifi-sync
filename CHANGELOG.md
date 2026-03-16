@@ -4,6 +4,15 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+## [0.3.18] - 2026-03-16
+
+### Fixed
+
+- **DHCP IP range sync works with the Django ORM adapter** — `IPRange.start_address` and `end_address` are now normalized to plain host addresses before ORM `get()`/`create()` calls, matching the payloads used by the sync engine and preventing DHCP range creation failures in plugin mode.
+- **Overlapping prefixes now pick the most specific match** — client IP sync, DHCP-to-static reassignment, fallback `primary_ip4` lookup, and final device IP assignment now sort matching prefixes by prefix length instead of taking the first result, so nested subnets resolve to the correct mask.
+
+---
+
 ## [0.3.17] - 2026-03-01
 
 ### Fixed

@@ -100,6 +100,24 @@ _MAC_WITH_SEP_RE = re.compile(r"(?i)([0-9a-f]{2}[:-]){5}[0-9a-f]{2}$")
 _MAC_PLAIN_RE = re.compile(r"(?i)[0-9a-f]{12}$")
 _NON_HEX_RE = re.compile(r"[^0-9A-Fa-f]")
 
+
+def _prefix_prefixlen(prefix_obj) -> int:
+    prefix_value = getattr(prefix_obj, "prefix", None)
+    if prefix_value is None and isinstance(prefix_obj, dict):
+        prefix_value = prefix_obj.get("prefix")
+    if prefix_value is None:
+        return -1
+    try:
+        return ipaddress.ip_network(str(prefix_value), strict=False).prefixlen
+    except ValueError:
+        return -1
+
+
+def _get_matching_prefixes(nb, ip_str: str, **filters):
+    prefixes = list(nb.ipam.prefixes.filter(contains=ip_str, **filters))
+    return sorted(prefixes, key=_prefix_prefixlen, reverse=True)
+
+
 def get_postable_fields(base_url, token, url_path):
     """
     Return the writable fields for a NetBox model path.
@@ -1230,7 +1248,7 @@ def sync_client_ips(nb, site_obj, nb_site, tenant):
             continue
 
         # Find prefix to determine mask length
-        prefixes = list(nb.ipam.prefixes.filter(contains=ip_str))
+        prefixes = _get_matching_prefixes(nb, ip_str)
         if not prefixes:
             logger.debug(f"No prefix found for client IP {ip_str}; skipping.")
             continue
@@ -1933,7 +1951,7 @@ def sync_gateway_interfaces(nb, nb_device, device, site_obj, tenant, vrf, unifi=
     # Fallback 1: device_ip found in a NetBox prefix (covers cases where device IP is routable)
     if not primary_ip_set and device_ip:
         try:
-            prefixes = list(nb.ipam.prefixes.filter(contains=device_ip))
+            prefixes = _get_matching_prefixes(nb, device_ip)
             if prefixes:
                 plen = str(prefixes[0].prefix).split("/")[1]
                 fallback_str = f"{device_ip}/{plen}"
@@ -2566,9 +2584,9 @@ def process_device(unifi, nb, site, device, nb_ubiquity, tenant, unifi_device_ip
                 logger.info(f"Device {device_name} has DHCP IP {device_ip}. Finding static IP...")
                 # Find prefix containing the DHCP IP
                 if vrf:
-                    dhcp_prefixes = list(nb.ipam.prefixes.filter(contains=device_ip, vrf_id=vrf.id))
+                    dhcp_prefixes = _get_matching_prefixes(nb, device_ip, vrf_id=vrf.id)
                 else:
-                    dhcp_prefixes = list(nb.ipam.prefixes.filter(contains=device_ip))
+                    dhcp_prefixes = _get_matching_prefixes(nb, device_ip)
 
                 if dhcp_prefixes:
                     target_prefix = dhcp_prefixes[0]
@@ -2595,13 +2613,13 @@ def process_device(unifi, nb, site, device, nb_ubiquity, tenant, unifi_device_ip
         # get the prefix that this IP address belongs to
         vrf_for_ip = vrf
         if vrf:
-            prefixes = list(nb.ipam.prefixes.filter(contains=device_ip, vrf_id=vrf.id))
+            prefixes = _get_matching_prefixes(nb, device_ip, vrf_id=vrf.id)
             if not prefixes:
-                prefixes = list(nb.ipam.prefixes.filter(contains=device_ip))
+                prefixes = _get_matching_prefixes(nb, device_ip)
                 if prefixes:
                     vrf_for_ip = None
         else:
-            prefixes = list(nb.ipam.prefixes.filter(contains=device_ip))
+            prefixes = _get_matching_prefixes(nb, device_ip)
         if not prefixes:
             auto_prefix = ensure_prefix_for_ip(nb, site, tenant, vrf, device_ip)
             if auto_prefix:
@@ -2613,11 +2631,9 @@ def process_device(unifi, nb, site, device, nb_ubiquity, tenant, unifi_device_ip
             else:
                 logger.warning(f"No prefix found for IP {device_ip} for device {device_name}. Skipping...")
                 return
-        for prefix in prefixes:
-            # Extract the prefix length (mask) from the prefix
-            subnet_mask = str(prefix.prefix).split('/')[1]
-            ip = f'{device_ip}/{subnet_mask}'
-            break
+        selected_prefix = prefixes[0]
+        subnet_mask = str(selected_prefix.prefix).split('/')[1]
+        ip = f'{device_ip}/{subnet_mask}'
         if nb_device:
             # Check if the IP has changed compared to what NetBox has
             old_ip_str = None

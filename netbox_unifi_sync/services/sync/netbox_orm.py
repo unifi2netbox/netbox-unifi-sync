@@ -24,10 +24,28 @@ already uses::
 """
 from __future__ import annotations
 
+import ipaddress
 import logging
 from typing import Any
 
 logger = logging.getLogger(__name__)
+
+
+def _normalize_iprange_address_value(model, key: str, value: Any) -> Any:
+    """Match pynetbox IPRange behaviour by stripping masks from host endpoints."""
+    if getattr(model, "__name__", "") != "IPRange":
+        return value
+    if key not in {"start_address", "end_address"} or not isinstance(value, str):
+        return value
+
+    text = value.strip()
+    if "/" not in text:
+        return value
+
+    try:
+        return str(ipaddress.ip_interface(text).ip)
+    except ValueError:
+        return value
 
 
 # ---------------------------------------------------------------------------
@@ -240,6 +258,7 @@ class _Endpoint:
         """
         translated: dict[str, Any] = {}
         for key, value in kwargs.items():
+            value = _normalize_iprange_address_value(self._model, key, value)
             # ``contains`` is a custom prefix lookup used in ipam
             if key == "contains":
                 try:
@@ -358,6 +377,7 @@ class _Endpoint:
         fk_names = self._fk_fields(self._model)
 
         for key, value in payload.items():
+            value = _normalize_iprange_address_value(self._model, key, value)
             if key == "content_types":
                 # ManyToMany: list of "app_label.model" strings
                 m2m["content_types"] = value

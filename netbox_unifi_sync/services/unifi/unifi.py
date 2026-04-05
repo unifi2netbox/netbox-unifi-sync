@@ -79,8 +79,12 @@ class Unifi:
         self.api_style = None  # "integration" or "legacy"
         self.integration_api_base = None
         self.integration_auth_headers = {}
-        self.verify_ssl = verify_ssl if verify_ssl is not None else self._read_env_bool("UNIFI_VERIFY_SSL", True)
-        self.persist_session = self._read_env_bool("UNIFI_PERSIST_SESSION", True)
+        self.verify_ssl = (
+            verify_ssl
+            if verify_ssl is not None
+            else self._read_env_bool("UNIFI_VERIFY_SSL", True)
+        )
+        self.persist_session = self._read_env_bool("UNIFI_PERSIST_SESSION", False)
         self.request_timeout = self._read_env_int(
             "UNIFI_REQUEST_TIMEOUT",
             self.DEFAULT_TIMEOUT,
@@ -111,9 +115,7 @@ class Unifi:
         # Prefer Integration API when API key is provided.
         if self.api_key and self.configure_integration_api():
             self.api_style = "integration"
-            logger.info(
-                f"Using UniFi Integration API at {self.integration_api_base}"
-            )
+            logger.info(f"Using UniFi Integration API at {self.integration_api_base}")
         else:
             if self.api_key:
                 if not self.allow_login_fallback:
@@ -258,24 +260,19 @@ class Unifi:
             meta_message = meta.get("msg") if isinstance(meta, dict) else None
             if isinstance(response_data.get("statusCode"), int):
                 payload["statusCode"] = response_data.get("statusCode")
-            payload["statusName"] = (
-                response_data.get("statusName")
-                or payload.get("statusName")
+            payload["statusName"] = response_data.get("statusName") or payload.get(
+                "statusName"
             )
             payload["code"] = response_data.get("code")
             payload["message"] = (
-                response_data.get("message")
-                or meta_message
-                or response.text
+                response_data.get("message") or meta_message or response.text
             )
             payload["timestamp"] = response_data.get("timestamp")
-            payload["requestPath"] = (
-                response_data.get("requestPath")
-                or payload.get("requestPath")
+            payload["requestPath"] = response_data.get("requestPath") or payload.get(
+                "requestPath"
             )
-            payload["requestId"] = (
-                response_data.get("requestId")
-                or payload.get("requestId")
+            payload["requestId"] = response_data.get("requestId") or payload.get(
+                "requestId"
             )
         else:
             payload["message"] = response.text
@@ -484,7 +481,9 @@ class Unifi:
     def save_session_to_file(self):
         """Save session data to file, grouped by base_url."""
         if not self.persist_session:
-            logger.debug("UniFi session persistence disabled (UNIFI_PERSIST_SESSION=false).")
+            logger.debug(
+                "UniFi session persistence disabled (UNIFI_PERSIST_SESSION=false)."
+            )
             return
         logger.debug(f"Saving session data for {self.base_url}")
         self._session_data[self.base_url] = {
@@ -513,7 +512,9 @@ class Unifi:
     def load_session_from_file(self):
         """Load session data from file for the current base_url."""
         if not self.persist_session:
-            logger.debug("UniFi session persistence disabled (UNIFI_PERSIST_SESSION=false).")
+            logger.debug(
+                "UniFi session persistence disabled (UNIFI_PERSIST_SESSION=false)."
+            )
             return
         logger.debug(f"Checking for session file at {self.SESSION_FILE}")
         if not os.path.exists(self.SESSION_FILE):
@@ -597,14 +598,14 @@ class Unifi:
                 continue
 
             response_data = self._parse_response_json(response) or {}
-            meta = response_data.get("meta", {}) if isinstance(response_data, dict) else {}
+            meta = (
+                response_data.get("meta", {}) if isinstance(response_data, dict) else {}
+            )
             msg = meta.get("msg")
             rc = meta.get("rc")
             self._refresh_session_metadata(response)
 
-            if rc == "ok" or (
-                response.ok and bool(self.session.cookies.get_dict())
-            ):
+            if rc == "ok" or (response.ok and bool(self.session.cookies.get_dict())):
                 self.auth_mode = mode["name"]
                 self.api_prefix = mode["api_prefix"]
                 self._refresh_session_metadata(response)
@@ -644,7 +645,15 @@ class Unifi:
             + ("; ".join(auth_errors) if auth_errors else "No auth mode succeeded.")
         )
 
-    def _make_request_legacy(self, endpoint, method="GET", data=None, params=None, retry_count=0, max_retries=None):
+    def _make_request_legacy(
+        self,
+        endpoint,
+        method="GET",
+        data=None,
+        params=None,
+        retry_count=0,
+        max_retries=None,
+    ):
         retries = self._effective_retries(max_retries)
         auth_max_attempts = max(1, retries + 1)
         method_upper = method.upper()
@@ -711,7 +720,10 @@ class Unifi:
                     }
                 continue
 
-            if response.status_code in self.RETRYABLE_STATUS_CODES and attempt < retries:
+            if (
+                response.status_code in self.RETRYABLE_STATUS_CODES
+                and attempt < retries
+            ):
                 delay = self._compute_retry_delay_seconds(attempt, response=response)
                 logger.warning(
                     f"Legacy request got transient status {response.status_code} "
@@ -723,10 +735,14 @@ class Unifi:
 
             if response.status_code >= 400:
                 error_payload = self._build_error_payload(response, response_data)
-                self._log_http_error("Legacy request failed:", method_upper, url, error_payload)
+                self._log_http_error(
+                    "Legacy request failed:", method_upper, url, error_payload
+                )
                 return error_payload
 
-            normalized_response = self._normalize_success_response(response, response_data)
+            normalized_response = self._normalize_success_response(
+                response, response_data
+            )
             if normalized_response is None:
                 logger.error("Received non-JSON response from UniFi API.")
                 return {
@@ -746,7 +762,15 @@ class Unifi:
             "message": f"Legacy request failed after {retries + 1} attempts",
         }
 
-    def _make_request_integration(self, endpoint, method="GET", data=None, params=None, retry_count=0, max_retries=None):
+    def _make_request_integration(
+        self,
+        endpoint,
+        method="GET",
+        data=None,
+        params=None,
+        retry_count=0,
+        max_retries=None,
+    ):
         retries = self._effective_retries(max_retries)
         if not self.integration_api_base:
             if not self.configure_integration_api():
@@ -804,7 +828,10 @@ class Unifi:
                     reconfigured = True
                     continue
 
-            if response.status_code in self.RETRYABLE_STATUS_CODES and attempt < retries:
+            if (
+                response.status_code in self.RETRYABLE_STATUS_CODES
+                and attempt < retries
+            ):
                 delay = self._compute_retry_delay_seconds(attempt, response=response)
                 logger.warning(
                     f"Integration request got transient status {response.status_code} "
@@ -816,10 +843,14 @@ class Unifi:
 
             if response.status_code >= 400:
                 error_payload = self._build_error_payload(response, response_data)
-                self._log_http_error("Integration request failed:", method_upper, url, error_payload)
+                self._log_http_error(
+                    "Integration request failed:", method_upper, url, error_payload
+                )
                 return error_payload
 
-            normalized_response = self._normalize_success_response(response, response_data)
+            normalized_response = self._normalize_success_response(
+                response, response_data
+            )
             if normalized_response is None:
                 logger.error("Received non-JSON response from Integration API.")
                 return {
@@ -835,7 +866,15 @@ class Unifi:
             "message": f"Integration request failed after {retries + 1} attempts",
         }
 
-    def make_request(self, endpoint, method="GET", data=None, params=None, retry_count=0, max_retries=None):
+    def make_request(
+        self,
+        endpoint,
+        method="GET",
+        data=None,
+        params=None,
+        retry_count=0,
+        max_retries=None,
+    ):
         """Make an authenticated request to the selected UniFi API style."""
         logger.debug(f"API request ({self.api_style}): {method} {endpoint}")
         if self.api_style == "integration":
@@ -873,9 +912,7 @@ class Unifi:
 
             data = response.get("data")
             if not isinstance(data, list):
-                raise ValueError(
-                    f"No sites found (missing data list): {response}"
-                )
+                raise ValueError(f"No sites found (missing data list): {response}")
 
             sites.extend(data)
             logger.debug(f"Retrieved {len(data)} sites at offset {offset}")

@@ -30,10 +30,17 @@ def dashboard_view(request: HttpRequest) -> HttpResponse:
     latest_run = SyncRun.objects.order_by("-created").first()
     recent_runs = SyncRun.objects.order_by("-created")[:10]
 
-    form = RunActionForm(initial={"dry_run": settings_obj.dry_run_default, "cleanup": settings_obj.cleanup_enabled})
+    form = RunActionForm(
+        initial={
+            "dry_run": settings_obj.dry_run_default,
+            "cleanup": settings_obj.cleanup_enabled,
+        }
+    )
     if request.method == "POST":
         if not request.user.has_perm("netbox_unifi_sync.run_sync"):
-            return HttpResponseForbidden("Missing permission: netbox_unifi_sync.run_sync")
+            return HttpResponseForbidden(
+                "Missing permission: netbox_unifi_sync.run_sync"
+            )
         form = RunActionForm(request.POST)
         if form.is_valid():
             dry_run = bool(form.cleaned_data.get("dry_run"))
@@ -56,14 +63,20 @@ def dashboard_view(request: HttpRequest) -> HttpResponse:
                     details={"dry_run": dry_run, "cleanup": cleanup},
                 )
             else:
-                identifier = getattr(job, "id", None) or getattr(job, "pk", None) or "queued"
+                identifier = (
+                    getattr(job, "id", None) or getattr(job, "pk", None) or "queued"
+                )
                 messages.success(request, f"Queued sync job ({identifier}).")
                 record_event(
                     action="sync.enqueue",
                     status="success",
                     actor=request.user,
                     message="sync job queued",
-                    details={"dry_run": dry_run, "cleanup": cleanup, "job": str(identifier)},
+                    details={
+                        "dry_run": dry_run,
+                        "cleanup": cleanup,
+                        "job": str(identifier),
+                    },
                 )
             return redirect("plugins:netbox_unifi_sync:dashboard")
 
@@ -78,7 +91,9 @@ def dashboard_view(request: HttpRequest) -> HttpResponse:
 
 
 @login_required
-@permission_required("netbox_unifi_sync.change_globalsyncsettings", raise_exception=True)
+@permission_required(
+    "netbox_unifi_sync.change_globalsyncsettings", raise_exception=True
+)
 def settings_view(request: HttpRequest) -> HttpResponse:
     settings_obj = get_or_create_global_settings()
     form = GlobalSyncSettingsForm(instance=settings_obj)
@@ -87,19 +102,30 @@ def settings_view(request: HttpRequest) -> HttpResponse:
         form = GlobalSyncSettingsForm(request.POST, instance=settings_obj)
         if form.is_valid():
             form.save()
-            record_event(action="settings.update", status="success", actor=request.user, message="Global settings updated")
+            record_event(
+                action="settings.update",
+                status="success",
+                actor=request.user,
+                message="Global settings updated",
+            )
             messages.success(request, "Global settings updated")
             return redirect("plugins:netbox_unifi_sync:settings")
         messages.error(request, "Unable to save settings. Fix validation errors.")
 
-    return render(request, "netbox_unifi_sync/settings.html", {"form": form, "settings": settings_obj})
+    return render(
+        request,
+        "netbox_unifi_sync/settings.html",
+        {"form": form, "settings": settings_obj},
+    )
 
 
 @login_required
 @permission_required("netbox_unifi_sync.view_unificontroller", raise_exception=True)
 def controller_list_view(request: HttpRequest) -> HttpResponse:
     controllers = UnifiController.objects.order_by("name")
-    return render(request, "netbox_unifi_sync/controllers.html", {"controllers": controllers})
+    return render(
+        request, "netbox_unifi_sync/controllers.html", {"controllers": controllers}
+    )
 
 
 @login_required
@@ -113,7 +139,13 @@ def controller_edit_view(request: HttpRequest, pk: int | None = None) -> HttpRes
         if form.is_valid():
             obj = form.save()
             action = "controller.update" if controller else "controller.create"
-            record_event(action=action, status="success", actor=request.user, target=obj.name, message=f"{obj.name} saved")
+            record_event(
+                action=action,
+                status="success",
+                actor=request.user,
+                target=obj.name,
+                message=f"{obj.name} saved",
+            )
             messages.success(request, f"Controller '{obj.name}' saved")
             return redirect("plugins:netbox_unifi_sync:controllers")
         error_items: list[str] = []
@@ -123,7 +155,11 @@ def controller_edit_view(request: HttpRequest, pk: int | None = None) -> HttpRes
         details = " | ".join(error_items) if error_items else "Fix validation errors."
         messages.error(request, f"Unable to save controller. {details}")
 
-    return render(request, "netbox_unifi_sync/controller_form.html", {"form": form, "controller": controller})
+    return render(
+        request,
+        "netbox_unifi_sync/controller_form.html",
+        {"form": form, "controller": controller},
+    )
 
 
 @login_required
@@ -134,9 +170,17 @@ def controller_delete_view(request: HttpRequest, pk: int) -> HttpResponse:
         name = controller.name
         controller.delete()
         messages.success(request, f"Controller '{name}' deleted")
-        record_event(action="controller.delete", status="success", actor=request.user, target=name, message=f"{name} deleted")
+        record_event(
+            action="controller.delete",
+            status="success",
+            actor=request.user,
+            target=name,
+            message=f"{name} deleted",
+        )
         return redirect("plugins:netbox_unifi_sync:controllers")
-    return render(request, "netbox_unifi_sync/controller_delete.html", {"controller": controller})
+    return render(
+        request, "netbox_unifi_sync/controller_delete.html", {"controller": controller}
+    )
 
 
 @login_required
@@ -149,16 +193,35 @@ def controller_test_view(request: HttpRequest, pk: int) -> HttpResponse:
         controller.last_tested = timezone.now()
         controller.last_test_status = "ok"
         controller.last_test_error = ""
-        controller.save(update_fields=["last_test_status", "last_test_error", "last_tested"])
-        messages.success(request, f"Controller '{controller.name}' test OK. Sites: {result['sites']}")
-        record_event(action="controller.test", status="success", actor=request.user, target=controller.name, message="Controller test succeeded", details=result)
+        controller.save(
+            update_fields=["last_test_status", "last_test_error", "last_tested"]
+        )
+        messages.success(
+            request, f"Controller '{controller.name}' test OK. Sites: {result['sites']}"
+        )
+        record_event(
+            action="controller.test",
+            status="success",
+            actor=request.user,
+            target=controller.name,
+            message="Controller test succeeded",
+            details=result,
+        )
     except Exception as exc:
         safe = sanitize_error(str(exc))
         controller.last_test_status = "error"
         controller.last_test_error = safe
-        controller.save(update_fields=["last_test_status", "last_test_error", "updated"])
+        controller.save(
+            update_fields=["last_test_status", "last_test_error", "last_updated"]
+        )
         messages.error(request, f"Controller test failed: {safe}")
-        record_event(action="controller.test", status="error", actor=request.user, target=controller.name, message=safe)
+        record_event(
+            action="controller.test",
+            status="error",
+            actor=request.user,
+            target=controller.name,
+            message=safe,
+        )
     return redirect("plugins:netbox_unifi_sync:controllers")
 
 
@@ -172,21 +235,27 @@ def controller_test_api_view(request: HttpRequest, pk: int) -> JsonResponse:
         controller.last_test_status = "ok"
         controller.last_test_error = ""
         controller.last_tested = timezone.now()
-        controller.save(update_fields=["last_test_status", "last_test_error", "last_tested"])
+        controller.save(
+            update_fields=["last_test_status", "last_test_error", "last_tested"]
+        )
         return JsonResponse(result, status=200)
     except Exception as exc:
         safe = sanitize_error(str(exc))
         controller.last_test_status = "error"
         controller.last_test_error = safe
         controller.last_tested = timezone.now()
-        controller.save(update_fields=["last_test_status", "last_test_error", "last_tested"])
+        controller.save(
+            update_fields=["last_test_status", "last_test_error", "last_tested"]
+        )
         return JsonResponse({"status": "error", "error": safe}, status=400)
 
 
 @login_required
 @permission_required("netbox_unifi_sync.view_sitemapping", raise_exception=True)
 def mapping_list_view(request: HttpRequest) -> HttpResponse:
-    mappings = SiteMapping.objects.select_related("controller").order_by("controller__name", "unifi_site")
+    mappings = SiteMapping.objects.select_related("controller").order_by(
+        "controller__name", "unifi_site"
+    )
     return render(request, "netbox_unifi_sync/mappings.html", {"mappings": mappings})
 
 
@@ -200,10 +269,20 @@ def mapping_edit_view(request: HttpRequest, pk: int | None = None) -> HttpRespon
         if form.is_valid():
             row = form.save()
             messages.success(request, "Site mapping saved")
-            record_event(action="mapping.save", status="success", actor=request.user, target=str(row.pk), message="Site mapping saved")
+            record_event(
+                action="mapping.save",
+                status="success",
+                actor=request.user,
+                target=str(row.pk),
+                message="Site mapping saved",
+            )
             return redirect("plugins:netbox_unifi_sync:mappings")
         messages.error(request, "Unable to save mapping. Fix validation errors.")
-    return render(request, "netbox_unifi_sync/mapping_form.html", {"form": form, "mapping": mapping})
+    return render(
+        request,
+        "netbox_unifi_sync/mapping_form.html",
+        {"form": form, "mapping": mapping},
+    )
 
 
 @login_required
@@ -213,9 +292,16 @@ def mapping_delete_view(request: HttpRequest, pk: int) -> HttpResponse:
     if request.method == "POST":
         mapping.delete()
         messages.success(request, "Site mapping deleted")
-        record_event(action="mapping.delete", status="success", actor=request.user, message="Site mapping deleted")
+        record_event(
+            action="mapping.delete",
+            status="success",
+            actor=request.user,
+            message="Site mapping deleted",
+        )
         return redirect("plugins:netbox_unifi_sync:mappings")
-    return render(request, "netbox_unifi_sync/mapping_delete.html", {"mapping": mapping})
+    return render(
+        request, "netbox_unifi_sync/mapping_delete.html", {"mapping": mapping}
+    )
 
 
 @login_required
@@ -235,7 +321,11 @@ def run_list_view(request: HttpRequest) -> HttpResponse:
         limit = 100
 
     runs = queryset[:limit]
-    return render(request, "netbox_unifi_sync/runs.html", {"runs": runs, "form": form, "total": queryset.count()})
+    return render(
+        request,
+        "netbox_unifi_sync/runs.html",
+        {"runs": runs, "form": form, "total": queryset.count()},
+    )
 
 
 @login_required

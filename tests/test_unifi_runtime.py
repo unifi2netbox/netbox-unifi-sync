@@ -34,7 +34,7 @@ def _build_unifi(monkeypatch, **env):
 def test_unifi_ssl_verify_defaults_to_true(monkeypatch):
     unifi = _build_unifi(monkeypatch)
     assert unifi.verify_ssl is True
-    assert unifi.persist_session is True
+    assert unifi.persist_session is False
 
 
 def test_unifi_ssl_verify_can_be_disabled(monkeypatch):
@@ -62,7 +62,7 @@ def test_integration_request_uses_unifi_verify_ssl(monkeypatch):
 
 
 def test_session_cache_does_not_persist_auth_headers(monkeypatch, tmp_path):
-    unifi = _build_unifi(monkeypatch)
+    unifi = _build_unifi(monkeypatch, UNIFI_PERSIST_SESSION="true")
     session_file = tmp_path / "unifi_session.json"
     monkeypatch.setattr(Unifi, "SESSION_FILE", str(session_file))
     unifi.integration_auth_headers = {"X-API-KEY": "super-secret"}
@@ -78,7 +78,7 @@ def test_session_cache_does_not_persist_auth_headers(monkeypatch, tmp_path):
 
 
 def test_load_session_tightens_file_permissions(monkeypatch, tmp_path):
-    unifi = _build_unifi(monkeypatch)
+    unifi = _build_unifi(monkeypatch, UNIFI_PERSIST_SESSION="true")
     session_file = tmp_path / "unifi_session.json"
     monkeypatch.setattr(Unifi, "SESSION_FILE", str(session_file))
 

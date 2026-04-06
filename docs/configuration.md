@@ -95,8 +95,8 @@ Note: local Integration API keys are required for Integration API mode.
 - `default_dns` (comma-separated fallback DNS list)
 - `netbox_device_status`
 - `sync_prefixes`
-- Prefix sync is enabled by default (`SYNC_PREFIXES=true` internally)
-- DHCP scopes are created as NetBox IP Ranges (`SYNC_DHCP_RANGES=true` internally)
+- Prefix sync is enabled by default (`sync_prefixes = true`)
+- DHCP scopes are created as NetBox IP Ranges when `sync_dhcp_ranges = true` (default)
 
 Note: `dhcp_writeback_enabled` is currently kept for compatibility in settings storage.
 The DHCP-to-static logic is currently driven by detected DHCP ranges, not by this flag alone.

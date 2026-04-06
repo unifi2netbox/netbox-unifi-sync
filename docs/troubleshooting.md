@@ -89,13 +89,13 @@ Check:
 
 - DHCP is enabled on UniFi network
 - `dhcp_auto_discover` enabled
-- DHCP range sync enabled (internal `SYNC_DHCP_RANGES=true`)
+- `sync_dhcp_ranges` enabled in plugin settings
 
 ### Expected prefixes not created
 
 Check:
 
-- prefix sync enabled (internal `SYNC_PREFIXES=true`)
+- `sync_prefixes` enabled in plugin settings
 - network has valid subnet/CIDR in UniFi data
 - run detail for per-site errors
 

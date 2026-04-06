@@ -6,6 +6,7 @@ from django.db.models import Q
 from django.http import HttpRequest, HttpResponse, HttpResponseForbidden, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
+from django.views.decorators.http import require_POST
 
 from .forms import (
     GlobalSyncSettingsForm,
@@ -185,6 +186,7 @@ def controller_delete_view(request: HttpRequest, pk: int) -> HttpResponse:
 
 @login_required
 @permission_required("netbox_unifi_sync.test_controller", raise_exception=True)
+@require_POST
 def controller_test_view(request: HttpRequest, pk: int) -> HttpResponse:
     controller = get_object_or_404(UnifiController, pk=pk)
     settings_obj = get_or_create_global_settings()
@@ -227,6 +229,7 @@ def controller_test_view(request: HttpRequest, pk: int) -> HttpResponse:
 
 @login_required
 @permission_required("netbox_unifi_sync.test_controller", raise_exception=True)
+@require_POST
 def controller_test_api_view(request: HttpRequest, pk: int) -> JsonResponse:
     controller = get_object_or_404(UnifiController, pk=pk)
     settings_obj = get_or_create_global_settings()

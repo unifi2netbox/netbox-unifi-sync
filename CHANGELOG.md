@@ -4,6 +4,19 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+## [0.3.21] - 2026-04-06
+
+### Fixed
+
+- **Controller test endpoints hardened** — changed controller test views to POST-only and updated UI actions to submit CSRF-protected forms, preventing state-changing GET requests.
+- **Release dependency security advisory** — upgraded `requests` to `>=2.33.0` to address the Dependabot alert for insecure temp file reuse in `extract_zipped_paths()`.
+- **Regression protection for HTTP method enforcement** — added tests that verify controller test endpoints remain POST-only and that controller list actions use POST for test triggers.
+
+### Changed
+
+- **Release workflow chaining** — aligned tag/release/publish workflow behavior so release creation and package publishing run in the intended sequence.
+- **Documentation alignment** — updated docs to reflect current sync flags, runtime behavior, and troubleshooting guidance.
+
 ## [0.3.20] - 2026-04-06
 
 ### Fixed

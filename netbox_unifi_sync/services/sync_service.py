@@ -49,12 +49,14 @@ def _preflight_netbox(plugin_settings: dict[str, Any]) -> dict[str, Any]:
     """
     try:
         import netbox
+
         netbox_version = getattr(netbox, "VERSION", None)
     except Exception:
         netbox_version = None
 
     try:
         from dcim.models import Site  # noqa: F401 — import-only connectivity check
+
         orm_ok = True
     except Exception:
         orm_ok = False
@@ -67,9 +69,20 @@ def _preflight_netbox(plugin_settings: dict[str, Any]) -> dict[str, Any]:
 
 
 def _preflight_unifi(plugin_settings: dict[str, Any]) -> list[dict[str, Any]]:
+    from ..models import UnifiController
+
     urls = _as_list(resolve_secret_value(plugin_settings.get("unifi_urls") or []))
     auth = UnifiAuthSettings.from_plugin_settings(plugin_settings)
     auth.validate()
+
+    # Build a lookup of verify_ssl per base_url from DB controllers,
+    # so preflight respects per-controller SSL settings (same as orchestrator).
+    controller_ssl = {}
+    try:
+        for ctrl in UnifiController.objects.filter(enabled=True):
+            controller_ssl[ctrl.base_url.rstrip("/")] = bool(ctrl.verify_ssl)
+    except Exception:
+        pass  # DB unavailable during early boot — fall back to plugin_settings
 
     checks: list[dict[str, Any]] = []
     for raw_url in urls:
@@ -77,15 +90,22 @@ def _preflight_unifi(plugin_settings: dict[str, Any]) -> list[dict[str, Any]]:
         if not url:
             continue
 
+        # Use per-controller verify_ssl from DB if available, else plugin_settings default.
+        verify_ssl = controller_ssl.get(
+            url.rstrip("/"), plugin_settings.get("verify_ssl", True)
+        )
+        per_url_settings = {**plugin_settings, "verify_ssl": verify_ssl}
+        url_auth = UnifiAuthSettings.from_plugin_settings(per_url_settings)
+
         try:
-            controller = auth.build_client(base_url=url)
-            sites = getattr(controller, "sites", [])
+            client = url_auth.build_client(base_url=url)
+            sites = getattr(client, "sites", [])
             checks.append(
                 {
                     "url": url,
                     "status": "ok",
-                    "auth_mode": auth.auth_mode,
-                    "api_style": getattr(controller, "api_style", "unknown"),
+                    "auth_mode": url_auth.auth_mode,
+                    "api_style": getattr(client, "api_style", "unknown"),
                     "sites": len(sites),
                 }
             )
@@ -106,7 +126,9 @@ def _run_preflight(plugin_settings: dict[str, Any]) -> dict[str, Any]:
     unifi_checks = _preflight_unifi(plugin_settings)
     failures = [item for item in unifi_checks if item.get("status") != "ok"]
     if failures:
-        raise RuntimeError(f"UniFi preflight failed for {len(failures)} controller(s): {failures}")
+        raise RuntimeError(
+            f"UniFi preflight failed for {len(failures)} controller(s): {failures}"
+        )
 
     return {
         "mode": "dry-run",
@@ -128,7 +150,9 @@ def execute_sync(
     if isinstance(config_overrides, dict):
         # In plugin runtime, UI/DB settings are passed as overrides.
         # Do not merge PLUGINS_CONFIG here; keep runtime source-of-truth in DB.
-        plugin_settings = normalize_plugin_settings(config_overrides, include_defaults=True)
+        plugin_settings = normalize_plugin_settings(
+            config_overrides, include_defaults=True
+        )
     else:
         plugin_settings = get_plugin_settings()
 

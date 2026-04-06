@@ -4,6 +4,20 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+## [0.3.20] - 2026-04-06
+
+### Fixed
+
+- **NetBox 4.5.7 compatibility and UniFi controller session behavior** — fixed controller test timestamp field handling, aligned preflight SSL verification with controller DB settings, and changed UniFi session persistence default to disabled to avoid stale session-cache auth failures.
+- **Release pipeline runtime tests aligned with secure defaults** — updated runtime tests for `UNIFI_PERSIST_SESSION=false` default and explicit session-cache behavior checks when persistence is enabled.
+
+### Changed
+
+- **GitHub Actions updated for Node.js 24 migration path** — upgraded workflow actions from `actions/checkout@v4` and `actions/setup-python@v5` to `@v6` to remove Node.js 20 deprecation warnings in CI/release runs.
+- **Manual release-tag workflow added** — new `create-release-tag.yml` lets maintainers create/push `vX.Y.Z` tags from GitHub UI with version consistency checks before triggering `release.yml`.
+
+---
+
 ## [0.3.18] - 2026-03-16
 
 ### Fixed

@@ -1,9 +1,26 @@
-name: Publish Python Package (manual)
+name: Publish Python Package
 
-# Manual re-publish only — normal releases are handled by release.yml.
-# Use this to re-publish an existing tag to PyPI without creating a new release.
 on:
+  release:
+    types: [published]
   workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag to publish (e.g. v0.3.20). Required for manual runs."
+        required: true
+        type: string
+      skip_existing:
+        description: "Skip upload errors for already-published files."
+        required: false
+        default: true
+        type: boolean
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
+concurrency:
+  group: pypi-${{ github.event_name == 'release' && github.event.release.tag_name || inputs.tag }}
+  cancel-in-progress: false
 
 jobs:
   deploy:
@@ -13,9 +30,34 @@ jobs:
     permissions:
       contents: read
       id-token: write
+      attestations: write
 
     steps:
+      - name: Resolve release tag
+        id: tag
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "${{ github.event_name }}" == "release" ]]; then
+            tag="${{ github.event.release.tag_name }}"
+          else
+            raw="${{ inputs.tag }}"
+            raw="${raw//[[:space:]]/}"
+            if [[ -z "$raw" ]]; then
+              echo "Input 'tag' is required for manual runs." >&2
+              exit 1
+            fi
+            if [[ "$raw" =~ ^v ]]; then
+              tag="$raw"
+            else
+              tag="v$raw"
+            fi
+          fi
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+
       - uses: actions/checkout@v6
+        with:
+          ref: ${{ steps.tag.outputs.tag }}
 
       - uses: actions/setup-python@v6
         with:
@@ -33,3 +75,5 @@ jobs:
 
       - name: Publish to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          skip-existing: ${{ github.event_name == 'workflow_dispatch' && inputs.skip_existing || 'false' }}

@@ -18,6 +18,9 @@ on:
         default: true
         type: boolean
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
 jobs:
   create_tag:
     runs-on: ubuntu-latest
@@ -116,5 +119,6 @@ jobs:
           {
             echo "Created and pushed tag: \`$tag\`"
             echo ""
-            echo "This triggers \`release.yml\` (lint, tests, GitHub Release, PyPI publish)."
+            echo "This triggers \`release.yml\` (lint, tests, GitHub Release)."
+            echo "After the release is published, \`publish-python-package.yml\` publishes to PyPI."
           } >> "$GITHUB_STEP_SUMMARY"

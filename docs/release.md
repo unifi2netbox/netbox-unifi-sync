@@ -14,10 +14,9 @@ This plugin is published as:
    - **PyPI Project Name**: `netbox-unifi-sync`
    - **Owner**: `unifi2netbox`
    - **Repository name**: `netbox-unifi-sync`
-   - **Workflow name**: `release.yml`
+   - **Workflow name**: `publish-python-package.yml`
    - **Environment name**: `pypi`
-3. Optional: add a second trusted publisher for `publish-python-package.yml` if you want manual re-publish from GitHub Actions.
-4. In GitHub repository settings, create environment:
+3. In GitHub repository settings, create environment:
    - `pypi`
 
 Read more: GitHub Actions OpenID Connect support  
@@ -46,10 +45,9 @@ Configured workflows:
   - runs on push of tags matching `v*`
   - runs lint + tests first
   - creates GitHub Release
-  - publishes to PyPI
 - `publish-python-package.yml`:
-  - runs only on manual dispatch
-  - re-publishes an existing tag to PyPI if needed
+  - runs automatically on `release: published`
+  - can also be run manually (`workflow_dispatch`) for retry
   - uses environment `pypi`
   - uses GitHub OIDC (`id-token: write`)
   - builds package (`sdist` + `wheel`)
@@ -65,7 +63,8 @@ Configured workflows:
    - `ref`: `main` (or a specific commit SHA)
    - `verify_version_files`: `true` (recommended)
 4. The workflow creates/pushes `vX.Y.Z`, which triggers `release.yml`.
-5. `release.yml` runs lint/tests, creates the GitHub Release, and publishes to PyPI.
+5. `release.yml` runs lint/tests and creates the GitHub Release.
+6. Publishing that release triggers `publish-python-package.yml`, which publishes to PyPI.
 
 ## Recommended CLI Commands (alternative)
 
@@ -77,7 +76,7 @@ git tag -a vX.Y.Z -m "Release vX.Y.Z"
 git push origin vX.Y.Z
 ```
 
-If the tag-triggered `release.yml` publish fails after the GitHub Release is created, run `Publish Python Package (manual)` from GitHub Actions (`workflow_dispatch`) against the same tag.
+If PyPI publish fails, run `Publish Python Package` manually from GitHub Actions (`workflow_dispatch`) with the same tag.
 
 ## Manual Publish (fallback)
 

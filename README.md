@@ -280,8 +280,8 @@ Recommended intervals:
    - manually with git:
    - `git tag -a vX.Y.Z -m "Release vX.Y.Z"`
    - `git push origin vX.Y.Z`
-4. `release.yml` runs on the tag push, gates on lint/tests, creates the GitHub Release, and publishes to PyPI.
-5. `publish-python-package.yml` is manual fallback only for re-publishing an existing tag.
+4. `release.yml` runs on the tag push, gates on lint/tests, and creates the GitHub Release.
+5. `publish-python-package.yml` runs on `release: published` and publishes to PyPI (can also be run manually for retry).
 
 > [!CAUTION]
 > Version mismatch between pyproject.toml, version.py, and netbox-plugin.yaml will break the release pipeline.

@@ -275,7 +275,9 @@ Recommended intervals:
    - netbox_unifi_sync/version.py (`__version__`)
    - netbox-plugin.yaml (`compatibility[].release`)
 2. Configure PyPI Trusted Publisher (OIDC) for this repository/workflow.
-3. Create and push tag `vX.Y.Z`:
+3. Create tag `vX.Y.Z` either:
+   - via GitHub Actions `Create Release Tag (manual)` (recommended), or
+   - manually with git:
    - `git tag -a vX.Y.Z -m "Release vX.Y.Z"`
    - `git push origin vX.Y.Z`
 4. `release.yml` runs on the tag push, gates on lint/tests, creates the GitHub Release, and publishes to PyPI.

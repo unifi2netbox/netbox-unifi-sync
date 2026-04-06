@@ -37,6 +37,11 @@ Tag must match version exactly: `vX.Y.Z`.
 
 Configured workflows:
 
+- `create-release-tag.yml`:
+  - runs only on manual dispatch
+  - creates and pushes an annotated tag (`vX.Y.Z`)
+  - can validate version consistency in `pyproject.toml`, `version.py`, and `netbox-plugin.yaml`
+  - triggers `release.yml` automatically via tag push
 - `release.yml`:
   - runs on push of tags matching `v*`
   - runs lint + tests first
@@ -51,7 +56,18 @@ Configured workflows:
   - runs `twine check`
   - publishes to PyPI without API token secret
 
-## Recommended Release Commands
+## Manual Release from GitHub UI
+
+1. Commit and push version/changelog updates on `main`.
+2. Open Actions -> `Create Release Tag (manual)`.
+3. Click `Run workflow` and set:
+   - `version`: `0.3.19` (or `v0.3.19`)
+   - `ref`: `main` (or a specific commit SHA)
+   - `verify_version_files`: `true` (recommended)
+4. The workflow creates/pushes `vX.Y.Z`, which triggers `release.yml`.
+5. `release.yml` runs lint/tests, creates the GitHub Release, and publishes to PyPI.
+
+## Recommended CLI Commands (alternative)
 
 ```bash
 git add pyproject.toml netbox_unifi_sync/version.py netbox-plugin.yaml CHANGELOG.md

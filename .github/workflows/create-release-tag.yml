@@ -1,0 +1,120 @@
+name: Create Release Tag (manual)
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to tag (e.g. 0.3.19 or v0.3.19)"
+        required: true
+        type: string
+      ref:
+        description: "Branch, tag, or commit SHA to tag"
+        required: false
+        default: "main"
+        type: string
+      verify_version_files:
+        description: "Require pyproject/version.py/netbox-plugin.yaml to match the tag version"
+        required: false
+        default: true
+        type: boolean
+
+jobs:
+  create_tag:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ inputs.ref }}
+
+      - name: Normalize and validate version input
+        id: version
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          raw="${{ inputs.version }}"
+          raw="${raw//[[:space:]]/}"
+
+          if [[ -z "$raw" ]]; then
+            echo "Input 'version' is empty." >&2
+            exit 1
+          fi
+
+          if [[ "$raw" =~ ^v ]]; then
+            tag="$raw"
+          else
+            tag="v$raw"
+          fi
+
+          if [[ ! "$tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+([-.+][0-9A-Za-z.-]+)*$ ]]; then
+            echo "Invalid version '$raw'. Use e.g. 0.3.19 or v0.3.19." >&2
+            exit 1
+          fi
+
+          version="${tag#v}"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Ensure tag does not already exist
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          tag="${{ steps.version.outputs.tag }}"
+          if git ls-remote --exit-code --tags origin "refs/tags/$tag" >/dev/null; then
+            echo "Tag '$tag' already exists on origin." >&2
+            exit 1
+          fi
+          if git rev-parse --verify --quiet "$tag" >/dev/null; then
+            echo "Tag '$tag' already exists locally in this checkout." >&2
+            exit 1
+          fi
+
+      - name: Verify version files
+        if: ${{ inputs.verify_version_files }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          version="${{ steps.version.outputs.version }}"
+          pyproject_version="$(awk -F\" '/^version = "/ {print $2; exit}' pyproject.toml)"
+          module_version="$(awk -F\" '/^__version__ = "/ {print $2; exit}' netbox_unifi_sync/version.py)"
+          plugin_release="$(awk '/release:/ {print $2; exit}' netbox-plugin.yaml)"
+
+          if [[ "$pyproject_version" != "$version" ]]; then
+            echo "pyproject.toml version '$pyproject_version' does not match '$version'." >&2
+            exit 1
+          fi
+          if [[ "$module_version" != "$version" ]]; then
+            echo "netbox_unifi_sync/version.py version '$module_version' does not match '$version'." >&2
+            exit 1
+          fi
+          if [[ "$plugin_release" != "$version" ]]; then
+            echo "netbox-plugin.yaml release '$plugin_release' does not match '$version'." >&2
+            exit 1
+          fi
+
+      - name: Create and push tag
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          tag="${{ steps.version.outputs.tag }}"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -a "$tag" -m "Release $tag"
+          git push origin "$tag"
+
+      - name: Summary
+        shell: bash
+        run: |
+          tag="${{ steps.version.outputs.tag }}"
+          {
+            echo "Created and pushed tag: \`$tag\`"
+            echo ""
+            echo "This triggers \`release.yml\` (lint, tests, GitHub Release, PyPI publish)."
+          } >> "$GITHUB_STEP_SUMMARY"

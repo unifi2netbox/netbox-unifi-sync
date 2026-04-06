@@ -74,11 +74,13 @@ Note: local Integration API keys are required for Integration API mode.
 
 ### Sync scope and behavior
 
+- `enabled`
 - `sync_interfaces`
 - `sync_vlans`
 - `sync_wlans`
 - `sync_cables`
 - `sync_stale_cleanup`
+- `sync_client_ips`
 - `cleanup_enabled`
 - `cleanup_grace_days`
 - `dry_run_default`
@@ -86,9 +88,18 @@ Note: local Integration API keys are required for Integration API mode.
 ### IPAM and DHCP
 
 - `dhcp_auto_discover`
+- `dhcp_ranges` (one CIDR per line in UI)
+- `sync_dhcp_ranges`
 - `dhcp_writeback_enabled`
+- `default_gateway` (fallback for DHCP-to-static flow)
+- `default_dns` (comma-separated fallback DNS list)
+- `netbox_device_status`
+- `sync_prefixes`
 - Prefix sync is enabled by default (`SYNC_PREFIXES=true` internally)
 - DHCP scopes are created as NetBox IP Ranges (`SYNC_DHCP_RANGES=true` internally)
+
+Note: `dhcp_writeback_enabled` is currently kept for compatibility in settings storage.
+The DHCP-to-static logic is currently driven by detected DHCP ranges, not by this flag alone.
 
 ### Identity and mapping
 
@@ -118,6 +129,16 @@ Note: local Integration API keys are required for Integration API mode.
 - `max_site_threads`
 - `max_device_threads`
 - `rate_limit_per_second`
+
+### Scheduling
+
+- `schedule_enabled`
+- `sync_interval_minutes`
+
+Scheduler behavior:
+- NetBox system job runs every 60 seconds and checks if a sync is due.
+- Effective minimum interval is 60 seconds (`sync_interval_minutes` values below 1 minute are treated as 1 minute in scheduler logic).
+- Scheduled runs use `dry_run_default` and `cleanup_enabled`.
 
 ### Specs refresh (optional)
 
@@ -156,9 +177,15 @@ The plugin maps UI state into these internal engine keys (for compatibility/debu
 | `SYNC_WLANS` | `sync_wlans` |
 | `SYNC_CABLES` | `sync_cables` |
 | `SYNC_STALE_CLEANUP` | `sync_stale_cleanup` |
+| `SYNC_CLIENT_IPS` | `sync_client_ips` |
 | `SYNC_PREFIXES` | Enabled internally (default `true`) |
 | `SYNC_DHCP_RANGES` | Enabled internally (default `true`) |
 | `DHCP_AUTO_DISCOVER` | `dhcp_auto_discover` |
+| `DHCP_RANGES` | `dhcp_ranges` |
+| `DHCP_WRITEBACK_ENABLED` | `dhcp_writeback_enabled` |
+| `DEFAULT_GATEWAY` | `default_gateway` |
+| `DEFAULT_DNS` | `default_dns` |
+| `NETBOX_DEVICE_STATUS` | `netbox_device_status` |
 | `NETBOX_CLEANUP` | `cleanup_enabled` |
 | `CLEANUP_STALE_DAYS` | `cleanup_grace_days` |
 
@@ -167,13 +194,23 @@ The plugin maps UI state into these internal engine keys (for compatibility/debu
 These are valid in `PLUGINS_CONFIG["netbox_unifi_sync"]` when you need preseed defaults:
 
 - `unifi_url` or `unifi_urls`
+- `enabled`
 - `verify_ssl`
 - `default_site`
 - `dry_run`
 - `netbox_import_tenant`, `netbox_roles`
+- `default_vrf_name`, `vrf_mode`, `serial_mode`
 - `unifi_site_mappings`
 - `tag_strategy`, `default_tags`
 - `asset_tag_enabled`, `asset_tag_patterns`, `asset_tag_uppercase`
+- `sync_interfaces`, `sync_vlans`, `sync_wlans`, `sync_cables`, `sync_stale_cleanup`, `sync_client_ips`
+- `dhcp_auto_discover`, `dhcp_ranges`, `sync_dhcp_ranges`, `default_gateway`, `default_dns`
+- `netbox_device_status`, `sync_prefixes`
+- `cleanup_enabled`, `cleanup_grace_days`
+- `schedule_enabled`, `sync_interval_minutes`
+- `request_timeout`, `http_retries`, `retry_backoff_base`, `retry_backoff_max`
+- `max_controller_threads`, `max_site_threads`, `max_device_threads`
+- `specs_auto_refresh`, `specs_include_store`, `specs_refresh_timeout`, `specs_store_timeout`, `specs_store_max_workers`, `specs_write_cache`
 - `rate_limit_per_second`
 
 ## Secret Handling

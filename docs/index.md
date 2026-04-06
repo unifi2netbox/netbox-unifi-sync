@@ -34,5 +34,5 @@ flowchart LR
 ## Notes
 
 - Primary sync direction is UniFi -> NetBox.
-- DHCP-to-static conversion can update UniFi device IP settings when enabled.
+- DHCP-to-static conversion can update UniFi device IP settings when a DHCP-range match is detected.
 - Local UniFi Integration API keys are supported; `unifi.ui.com` cloud keys are not drop-in compatible.

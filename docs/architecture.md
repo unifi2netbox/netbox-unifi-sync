@@ -78,7 +78,7 @@ Main thread-safe structures in `netbox_unifi_sync/services/sync_engine.py`:
 5. Per site:
    - sync devices
    - sync interfaces/VLANs/WLANs/cables (feature toggles)
-   - optional DHCP-to-static conversion (updates UniFi device IP config)
+   - conditional DHCP-to-static conversion when device IPs are detected inside DHCP ranges
 6. Optional cleanup (`cleanup_enabled=true`)
 7. Repeat if scheduler is enabled and interval is configured
 

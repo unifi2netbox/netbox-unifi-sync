@@ -26,6 +26,25 @@ Cleanup run:
 python manage.py netbox_unifi_sync_run --cleanup
 ```
 
+Flags:
+
+- `--dry-run`: preflight only, no writes.
+- `--cleanup`: requests cleanup in same run.
+- `--json`: structured JSON output.
+
+## Scheduler
+
+- NetBox system job checks every 60 seconds if auto-sync is due.
+- Requires `enabled=true` and `schedule_enabled=true` in Settings.
+- Interval is controlled by `sync_interval_minutes`.
+
+## JSON API
+
+Mounted under `/plugins/unifi-sync/api/`:
+
+- `GET /plugins/unifi-sync/api/status/`
+- `POST /plugins/unifi-sync/api/controllers/<pk>/test/`
+
 ## What to verify after run
 
 - Sync run status = success

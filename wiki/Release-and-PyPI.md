@@ -20,13 +20,16 @@ PyPI publisher must match exactly:
 1. Bump version in:
    - `pyproject.toml`
    - `netbox_unifi_sync/version.py`
+   - `netbox-plugin.yaml` (`compatibility[].release`)
 2. Commit + push `main`
-3. Create and push tag `vX.Y.Z`
-4. `release.yml` creates GitHub release
-5. `publish-python-package.yml` publishes to PyPI
+3. Create tag `vX.Y.Z`:
+   - recommended: run Actions workflow `Create Release Tag (manual)`
+   - alternative: create and push tag manually with git
+4. `release.yml` runs on tag push, gates on lint/tests, and creates GitHub release
+5. `publish-python-package.yml` publishes to PyPI on `release: published`
 
 Note:
-- If publish does not start automatically from the release event, run `Publish Python Package` manually (`workflow_dispatch`).
+- If publish does not start automatically from the release event, run `Publish Python Package` manually (`workflow_dispatch`) with the same release tag.
 
 ## Common failure
 

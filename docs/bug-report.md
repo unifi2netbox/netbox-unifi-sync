@@ -1,101 +1,57 @@
-# Bug Report (Current Branch: v3.1)
+# Bug Report Guide
 
-Dato: 2026-02-24  
-Scope: `unifi2netbox/services/sync_engine.py`, `unifi2netbox/services/sync/*`, `unifi2netbox/services/unifi/*`, tests  
-Miljø: Docker-baseret validering
+Use this guide when reporting defects in `netbox_unifi_sync`.
 
-## Executive Summary
+## Required Information
 
-- Kritiske blockers fundet: **0**
-- Høj prioritet (P1) åbne: **0**
-- Medium prioritet (P2) åbne: **2**
-- Lav prioritet (P3) åbne: **flere tekniske gældsitems**
+Include:
 
-## Verificerede rettelser
+- NetBox version
+- Plugin version (`pip show netbox-unifi-sync` or `netbox_unifi_sync/version.py`)
+- Deployment mode (`venv` or `netbox-docker`)
+- Python version in NetBox + worker runtime
+- Exact failing action (UI run, scheduler run, CLI run, release workflow, etc.)
+- Full error text from:
+  - `Plugins -> UniFi Sync -> Runs -> Run detail`
+  - worker logs
 
-### BR-001: Sensitive data i logs
+Do not include secrets (API keys, passwords, MFA secrets, tokens, cookies).
 
-- Status: **Fixed**
-- Severity: **P1 (Security)**
-- Problem: Tokens/passwords kunne skrives til logs ved fejl og debug output.
-- Løsning:
-  - Central redaction formatter indført.
-  - Dækker Authorization, API keys, token/password query params, og `https://user:pass@host`.
-- Filer:
-  - `unifi2netbox/services/sync/log_sanitizer.py`
-  - `unifi2netbox/services/sync_engine.py` (formatter wiring)
-  - `tests/test_log_sanitizer.py`
-- Verifikation:
-  - Test suite indeholder redaction-cases og er grøn i Docker.
+## Reproduction Template
 
-### BR-002: Ping subprocess input-hardening
+1. Initial state (settings/controller/site mapping values).
+2. Exact command or UI action used.
+3. Expected behavior.
+4. Actual behavior.
+5. Whether issue is deterministic or intermittent.
 
-- Status: **Fixed**
-- Severity: **P1 (Security/Runtime)**
-- Problem: `ping_ip()` accepterede uvalideret input til subprocess-kommando.
-- Løsning:
-  - IP valideres via `ipaddress.ip_address`.
-  - `count`/`timeout` clamped til sikre grænser.
-  - `check=False` sat eksplicit.
-- Filer:
-  - `unifi2netbox/services/sync/ipam.py`
-  - `tests/test_ipam_ping.py`
-- Verifikation:
-  - Nye tests for invalid IP og argument-clamping.
+## Local Validation Commands (Docker)
 
-### BR-003: Tavse exceptions i kritiske flows
-
-- Status: **Fixed (målrettet)**
-- Severity: **P2 (Stability/Observability)**
-- Problem: `except ...: pass` skjulte fejl i template sync og session-file checks.
-- Løsning:
-  - Erstattet med debug/warning logging i relevante kritiske paths.
-- Filer:
-  - `unifi2netbox/services/sync_engine.py`
-  - `unifi2netbox/services/unifi/unifi.py`
-
-### BR-004: Regression fra API re-export cleanup
-
-- Status: **Fixed**
-- Severity: **P2 (Compatibility)**
-- Problem: Oprydning af imports i `unifi2netbox/services/sync_engine.py` brød test/import-kontrakter.
-- Løsning:
-  - Backward-compatible symbol re-exports bevaret i `unifi2netbox/services/sync_engine.py`.
-
-## Åbne risici (ikke blockers til i morgen, men bør planlægges)
-
-### BR-005: Bred exception-håndtering i stor del af main-flow
-
-- Status: **Open**
-- Severity: **P2**
-- Beskrivelse:
-  - Flere brede `except Exception` bruges stadig i runtime flow.
-  - Nogle er bevidste fail-soft mekanismer, men gør root-cause analyse sværere.
-- Anbefalet handling:
-  - Faseopdeling: erstat brede catches med domænespecifikke exceptions i top 10 hot paths først.
-
-### BR-006: Monolitisk `unifi2netbox/services/sync_engine.py` (arkitektur-risiko)
-
-- Status: **Open**
-- Severity: **P2**
-- Beskrivelse:
-  - Stor fil med mange ansvar (sync orchestration, API access, IPAM, cleanup, templates).
-  - Øger regression-risiko og gør testbarhed dårligere.
-- Anbefalet handling:
-- Fortsæt igangværende split i moduler (`unifi2netbox/services/sync/*`, `unifi2netbox/services/unifi/*`) med små, testdrevne trin.
-
-## Reproduktion / validering
-
-Kør i Docker:
+From repository root:
 
 ```bash
-docker run --rm -v "$PWD":/app -w /app unifi2netbox:v3.1-check sh -lc "pip install -q ruff && ruff check ."
-docker run --rm -v "$PWD":/app -w /app unifi2netbox:v3.1-check sh -lc "pip install -q pytest && pytest -q"
-docker run --rm -v "$PWD":/app -w /app unifi2netbox:v3.1-check sh -lc "pip install -q bandit && bandit -q -r unifi2netbox/services/sync_engine.py unifi2netbox/services/sync unifi2netbox/services/unifi"
+docker run --rm -v "$PWD":/work -w /work python:3.12 bash -lc "python -m pip install --upgrade pip && pip install -r requirements.txt -e . ruff bandit && ruff check netbox_unifi_sync/ && bandit -r netbox_unifi_sync/ -ll"
+docker run --rm -v "$PWD":/work -w /work python:3.11 bash -lc "python -m pip install --upgrade pip && pip install -r requirements.txt -e . pytest && pytest -q"
+docker run --rm -v "$PWD":/work -w /work python:3.12 bash -lc "python -m pip install --upgrade pip && pip install -r requirements.txt -e . pytest && pytest -q"
 ```
 
-Forventet resultat:
+Optional package build check:
 
-- `ruff`: all checks passed
-- `pytest`: alle tests grønne
-- `bandit`: ingen findings i app-kode scope ovenfor
+```bash
+docker run --rm -v "$PWD":/work -w /work python:3.12 bash -lc "python -m pip install --upgrade pip && pip install build twine && python -m build && twine check dist/*"
+```
+
+## NetBox Runtime Checks
+
+```bash
+python manage.py showmigrations netbox_unifi_sync
+python manage.py check
+python manage.py netbox_unifi_sync_run --dry-run --json
+```
+
+## Useful Attachments
+
+- Screenshot of `Runs` error page
+- Relevant worker log excerpt around failure timestamp
+- Sanitized controller test result from:
+  - `POST /plugins/unifi-sync/api/controllers/<pk>/test/`

@@ -5,7 +5,8 @@
 ### Does plugin sync write back to UniFi?
 
 Primarily no. Normal direction is **UniFi -> NetBox**.  
-Writeback happens only for DHCP-to-static flow when `dhcp_writeback_enabled` is enabled.
+Writeback can happen in DHCP-to-static flow when a device is detected with a DHCP IP inside known DHCP ranges.
+`dhcp_writeback_enabled` is currently retained as a compatibility setting in the model, but is not the sole runtime gate.
 
 ### Which UniFi API mode should I use?
 

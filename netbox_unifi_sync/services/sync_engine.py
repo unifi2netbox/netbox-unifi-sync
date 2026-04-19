@@ -1174,6 +1174,29 @@ def sync_site_wlans(nb, site_obj, nb_site, tenant):
                     logger.warning(f"Failed to update wireless LAN '{ssid}': {e}")
 
 
+def _client_description(client_data):
+    parts = [f"unifi-client:{client_data['mac']}"]
+    hostname = str(client_data.get("hostname") or "").strip()
+    if hostname and hostname != client_data["mac"]:
+        parts.append(f"Host: {hostname}")
+    ssid = str(client_data.get("ssid") or "").strip()
+    if ssid:
+        parts.append(f"SSID: {ssid}")
+    ap_name = str(client_data.get("ap_name") or "").strip()
+    if ap_name:
+        parts.append(f"AP: {ap_name}")
+    signal = client_data.get("signal")
+    if signal not in (None, ""):
+        parts.append(f"Signal: {signal}dBm")
+    last_seen = client_data.get("last_seen")
+    if last_seen not in (None, ""):
+        try:
+            parts.append(f"Last seen: {int(float(last_seen))}")
+        except (TypeError, ValueError):
+            pass
+    return " | ".join(parts)
+
+
 def sync_client_ips(nb, site_obj, nb_site, tenant):
     """Sync UniFi client IP addresses to NetBox IPAM.
 
@@ -1230,8 +1253,15 @@ def sync_client_ips(nb, site_obj, nb_site, tenant):
 
         hostname = (client.get("hostname") or client.get("name")
                     or client.get("display_name") or mac_norm)
-        active_clients[mac_norm] = {"ip": ip_str, "mac": mac_norm,
-                                    "last_seen": last_seen, "hostname": hostname}
+        active_clients[mac_norm] = {
+            "ip": ip_str,
+            "mac": mac_norm,
+            "last_seen": last_seen,
+            "hostname": hostname,
+            "ssid": client.get("essid") or client.get("ssid") or client.get("wlan_name"),
+            "ap_name": client.get("ap_name") or client.get("apName") or client.get("radio_name"),
+            "signal": client.get("signal") or client.get("rssi"),
+        }
 
     logger.debug(f"Site {nb_site.name}: {len(active_clients)} active clients with IPs")
 
@@ -1239,7 +1269,7 @@ def sync_client_ips(nb, site_obj, nb_site, tenant):
     for mac_norm, client_data in active_clients.items():
         ip_str = client_data["ip"]
         hostname = client_data["hostname"]
-        description = f"unifi-client:{mac_norm}"
+        description = _client_description(client_data)
 
         try:
             ipaddress.ip_address(ip_str)
@@ -1332,7 +1362,7 @@ def sync_client_ips(nb, site_obj, nb_site, tenant):
             desc = nb_ip.description or ""
             stored_mac = None
             if desc.startswith("unifi-client:"):
-                stored_mac = desc.split(":", 1)[1].strip().upper()
+                stored_mac = desc.split(":", 1)[1].split("|", 1)[0].strip().upper()
 
             ip_plain = str(nb_ip.address).split("/")[0]
 
@@ -1389,6 +1419,106 @@ def map_unifi_radio_to_netbox_type(radio):
     return "ieee802.11ax"
 
 
+def _first_port_value(port, *keys):
+    for key in keys:
+        value = port.get(key)
+        if value not in (None, "", [], {}):
+            return value
+    return None
+
+
+def _format_vlan_values(value):
+    if value in (None, "", [], {}):
+        return ""
+    if isinstance(value, (list, tuple, set)):
+        items = value
+    else:
+        items = str(value).replace(";", ",").split(",")
+    cleaned = []
+    for item in items:
+        if isinstance(item, dict):
+            item = _first_port_value(item, "vlanId", "vlan", "vid", "id", "name")
+        text = str(item).strip()
+        if text and text not in cleaned:
+            cleaned.append(text)
+    return ", ".join(cleaned)
+
+
+def _format_power_watts(value):
+    if value in (None, ""):
+        return ""
+    try:
+        numeric = float(value)
+    except (TypeError, ValueError):
+        return str(value).strip()
+    # Some UniFi payloads report PoE draw in milliwatts.
+    if numeric > 1000:
+        numeric = numeric / 1000
+    return f"{numeric:g}W"
+
+
+def _build_port_description(port, *, is_uplink=False, poe=None, speed_mbps=None):
+    parts = []
+    if is_uplink:
+        parts.append("Uplink")
+
+    profile = _first_port_value(
+        port,
+        "portProfileName",
+        "port_profile_name",
+        "portconf_name",
+        "profileName",
+        "profile",
+    )
+    if isinstance(profile, dict):
+        profile = _first_port_value(profile, "name", "id")
+    if profile:
+        parts.append(f"Profile: {profile}")
+
+    native_vlan = _first_port_value(
+        port,
+        "nativeVlan",
+        "native_vlan",
+        "nativeVlanId",
+        "nativeNetworkVlan",
+        "vlanId",
+        "vlan",
+        "pvid",
+    )
+    if native_vlan not in (None, "", 0, "0"):
+        parts.append(f"Native VLAN: {native_vlan}")
+
+    tagged_vlans = _format_vlan_values(_first_port_value(
+        port,
+        "taggedVlans",
+        "tagged_vlans",
+        "taggedVlanIds",
+        "allowedVlans",
+        "allowed_vlans",
+        "vlanIds",
+    ))
+    if tagged_vlans:
+        parts.append(f"Tagged VLANs: {tagged_vlans}")
+
+    if poe:
+        parts.append(f"PoE: {poe}")
+    poe_draw = _format_power_watts(_first_port_value(
+        port,
+        "poePower",
+        "poe_power",
+        "poePowerWatts",
+        "poe_power_watts",
+        "poe_power_mw",
+    ))
+    if poe_draw:
+        parts.append(f"PoE draw: {poe_draw}")
+
+    if speed_mbps:
+        parts.append(f"Max speed: {speed_mbps}Mbps")
+
+    return " | ".join(str(part) for part in parts if part)
+
+
 def normalize_port_data(device, api_style="integration"):
     """Extract and normalize port data from device dict into a common format."""
     ports = []
@@ -1423,14 +1553,14 @@ def normalize_port_data(device, api_style="integration"):
                 else port.get("state", "").upper() == "UP" if "state" in port
                 else port.get("up", True)
             )
-            poe = port.get("poeMode") or port.get("poe_mode")
+            poe = _first_port_value(port, "poeMode", "poe_mode", "poe")
             mac = port.get("macAddress") or port.get("mac")
             is_uplink = port.get("isUplink", False)
         else:
             name = port.get("name") or f"Port {port.get('port_idx', '?')}"
             speed_mbps = port.get("speed") or 0
             enabled = port.get("up", True)
-            poe = port.get("poe_mode")
+            poe = _first_port_value(port, "poe_mode", "poeMode", "poe")
             mac = port.get("mac")
             is_uplink = port.get("is_uplink", False)
 
@@ -1455,7 +1585,12 @@ def normalize_port_data(device, api_style="integration"):
             "poe_mode": nb_poe_mode,
             "mac_address": mac,
             "is_uplink": bool(is_uplink),
-            "description": "Uplink" if is_uplink else "",
+            "description": _build_port_description(
+                port,
+                is_uplink=bool(is_uplink),
+                poe=poe,
+                speed_mbps=speed_mbps,
+            ),
         })
     return ports
 

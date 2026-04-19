@@ -61,6 +61,41 @@ python3 tools/refresh_unifi_specs.py --skip-store
 
 If expected template set differs from existing templates, current templates are replaced for that device type.
 
+## Runtime Port Metadata
+
+Device type templates describe what a model can have. Runtime UniFi port data
+describes what each live port is currently doing. During interface sync, the
+plugin stores native NetBox interface fields when available:
+
+- interface type
+- enabled state
+- speed
+- PoE mode
+- primary MAC address
+
+Additional UniFi-only operational details are added to the NetBox interface
+description so they are visible without requiring custom fields:
+
+- uplink marker
+- UniFi port profile name
+- native VLAN
+- tagged VLAN list
+- current PoE draw
+- reported max link speed
+
+## Runtime Client Metadata
+
+When `sync_client_ips` is enabled, UniFi client IP addresses are tagged
+`unifi-client`. The IP description starts with a stable
+`unifi-client:<MAC>` marker used for cleanup, followed by optional context when
+UniFi reports it:
+
+- hostname/display name
+- SSID
+- AP name
+- signal
+- last seen timestamp
+
 ## Auto-Create Device Types
 
 When UniFi reports an unknown model:

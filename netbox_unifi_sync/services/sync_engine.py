@@ -779,13 +779,13 @@ def sync_uplink_cable(nb, nb_device, device, all_nb_devices_by_mac):
         # For APs with no wired interfaces, create an eth0 interface for uplink
         if not our_iface and not wired_ifaces:
             try:
-                our_iface = nb.dcim.interfaces.create({
+                our_iface, created = _create_or_get_interface(nb, {
                     "device": nb_device.id,
                     "name": "eth0",
                     "type": "1000base-t",
                     "description": "Uplink (auto-created)",
                 })
-                if our_iface:
+                if our_iface and created:
                     logger.info(f"Created eth0 uplink interface for {device_name}")
             except pynetbox.core.query.RequestError as e:
                 logger.debug(f"Could not create eth0 for {device_name}: {e}")
@@ -1263,6 +1263,44 @@ def _assignment_object_type(obj) -> str:
     if meta:
         return f"{meta.app_label}.{meta.model_name}"
     return "dcim.interface"
+
+
+def _get_interface(nb, device_id, name):
+    try:
+        return nb.dcim.interfaces.get(device_id=device_id, name=name)
+    except Exception as exc:
+        logger.debug("Interface lookup failed for device=%s name=%s: %s", device_id, name, exc)
+        return None
+
+
+def _create_or_get_interface(nb, payload):
+    device_id = payload.get("device") or payload.get("device_id")
+    name = payload.get("name")
+    if device_id and name:
+        existing = _get_interface(nb, device_id, name)
+        if existing:
+            return existing, False
+    try:
+        return nb.dcim.interfaces.create(payload), True
+    except TypeError:
+        try:
+            return nb.dcim.interfaces.create(**payload), True
+        except Exception as exc:
+            create_error = exc
+    except Exception as exc:
+        create_error = exc
+
+    if device_id and name:
+        existing = _get_interface(nb, device_id, name)
+        if existing:
+            logger.debug(
+                "Interface %s already exists on device %s after create failure: %s",
+                name,
+                device_id,
+                create_error,
+            )
+            return existing, False
+    raise create_error
 
 
 def sync_client_ips(nb, site_obj, nb_site, tenant):
@@ -1906,10 +1944,10 @@ def sync_device_interfaces(nb, nb_device, device, api_style="integration", unifi
             resolved_iface = existing
         else:
             try:
-                new_iface = nb.dcim.interfaces.create(iface_data)
-                if new_iface:
+                new_iface, created = _create_or_get_interface(nb, iface_data)
+                if new_iface and created:
                     logger.info(f"Created interface {iface_name} (ID {new_iface.id}) on {device_name}")
-                    resolved_iface = new_iface
+                resolved_iface = new_iface
             except pynetbox.core.query.RequestError as e:
                 logger.warning(f"Failed to create interface {iface_name} on {device_name}: {e}")
 
@@ -1966,8 +2004,8 @@ def sync_device_interfaces(nb, nb_device, device, api_style="integration", unifi
                         logger.warning(f"Failed to update radio {iface_name} on {device_name}: {e}")
             else:
                 try:
-                    new_iface = nb.dcim.interfaces.create(iface_data)
-                    if new_iface:
+                    new_iface, created = _create_or_get_interface(nb, iface_data)
+                    if new_iface and created:
                         logger.info(f"Created radio {iface_name} (ID {new_iface.id}) on {device_name}")
                 except pynetbox.core.query.RequestError as e:
                     logger.warning(f"Failed to create radio {iface_name} on {device_name}: {e}")
@@ -2116,8 +2154,8 @@ def sync_gateway_interfaces(nb, nb_device, device, site_obj, tenant, vrf, unifi=
                 "description": description,
             }
             try:
-                interface = nb.dcim.interfaces.create(iface_payload)
-                if interface:
+                interface, created = _create_or_get_interface(nb, iface_payload)
+                if interface and created:
                     logger.info(f"Created gateway interface {iface_name!r} on {device_name}")
             except Exception as e:
                 logger.warning(f"Could not create interface {iface_name!r} on {device_name}: {e}")
@@ -2269,6 +2307,30 @@ _device_type_specs_lock = threading.Lock()
 _community_specs = None
 
 
+def _default_specs_cache_path() -> str:
+    return os.getenv(
+        "UNIFI_SPECS_CACHE_FILE",
+        os.path.join("/var", "tmp", "netbox-unifi-sync", "ubiquiti_device_specs.json"),
+    ).strip()
+
+
+def _writable_specs_cache_path(current_path: str) -> str | None:
+    candidates = [current_path, _default_specs_cache_path()]
+    seen = set()
+    for path in candidates:
+        if not path or path in seen:
+            continue
+        seen.add(path)
+        directory = os.path.dirname(path) or "."
+        try:
+            os.makedirs(directory, exist_ok=True)
+            if os.access(directory, os.W_OK):
+                return path
+        except OSError:
+            continue
+    return None
+
+
 def _load_community_specs():
     """Load community device specs from bundled JSON file (lazy, cached)."""
     global _community_specs
@@ -2278,6 +2340,7 @@ def _load_community_specs():
     custom_specs_path = (os.getenv("UNIFI_SPECS_FILE") or "").strip()
     json_candidates = [
         custom_specs_path,
+        _default_specs_cache_path(),
         os.path.join(base_dir, "data", "ubiquiti_device_specs.json"),
         os.path.join(base_dir, "..", "..", "data", "ubiquiti_device_specs.json"),
         os.path.join(base_dir, "netbox_unifi_sync", "data", "ubiquiti_device_specs.json"),
@@ -2319,11 +2382,15 @@ def _load_community_specs():
                     f"{len(_community_specs.get('by_model', {}))} by model"
                 )
                 if write_cache:
-                    try:
-                        write_specs_bundle(json_path, _community_specs)
-                        logger.info(f"Wrote refreshed community specs cache to {json_path}")
-                    except Exception as cache_err:
-                        logger.warning(f"Failed to write refreshed community specs cache: {cache_err}")
+                    cache_path = _writable_specs_cache_path(json_path)
+                    if cache_path:
+                        try:
+                            write_specs_bundle(cache_path, _community_specs)
+                            logger.info(f"Wrote refreshed community specs cache to {cache_path}")
+                        except Exception as cache_err:
+                            logger.warning(f"Failed to write refreshed community specs cache: {cache_err}")
+                    else:
+                        logger.info("Skipping refreshed community specs cache write: no writable cache path.")
             else:
                 logger.warning("Auto-refresh returned empty device specs bundle; keeping bundled specs.")
         except Exception as refresh_err:
@@ -2923,8 +2990,8 @@ def process_device(unifi, nb, site, device, nb_ubiquity, tenant, unifi_device_ip
                     }
                     if vrf:
                         iface_payload["vrf_id"] = vrf.id
-                    interface = nb.dcim.interfaces.create(**iface_payload)
-                    if interface:
+                    interface, created = _create_or_get_interface(nb, iface_payload)
+                    if interface and created:
                         logger.info(
                             f"Interface vlan.1 for device {device_name} with ID {interface.id} successfully added to NetBox.")
                 except pynetbox.core.query.RequestError as e:

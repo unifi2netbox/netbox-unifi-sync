@@ -573,7 +573,7 @@ def set_unifi_device_static_ip(
 ) -> bool:
     """
     Set a static IP on a UniFi device via the controller API.
-    For Integration API: PATCH /sites/{siteId}/devices/{deviceId}
+    Integration API v1 currently does not expose a supported device IP-config endpoint.
     For Legacy API: PUT /api/s/{site}/rest/device/{id}
     """
     device_id = device.get("id") or device.get("_id")
@@ -596,9 +596,8 @@ def set_unifi_device_static_ip(
 
     api_style = getattr(unifi, "api_style", "legacy")
     if api_style == "integration":
-        # Integration API v1 does not expose a device IP-config endpoint (no PATCH on /devices/{id}).
-        # Fall through to the Legacy API which supports PUT /api/s/{site}/rest/device/{id}.
-        logger.debug("Integration API does not support static IP config; using Legacy API fallback")
+        logger.info("Skipping DHCP writeback for device %s: Integration API does not support static IP config.", device_id)
+        return False
 
     config_network = {
         "type": "static",

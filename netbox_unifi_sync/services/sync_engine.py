@@ -457,6 +457,12 @@ def extract_asset_tag(device_name: str | None) -> str | None:
 def get_device_mac(device: dict) -> str | None:
     return device.get("mac") or device.get("macAddress")
 
+def _normalize_mac(mac: str | None) -> str:
+    clean = str(mac or "").strip().upper().replace("-", ":").replace(".", ":")
+    if ":" not in clean and len(clean) == 12:
+        clean = ":".join(clean[i:i+2] for i in range(0, 12, 2))
+    return clean
+
 def get_device_ip(device: dict) -> str | None:
     return device.get("ip") or device.get("ipAddress")
 
@@ -1208,6 +1214,57 @@ def _client_description(client_data):
     return " | ".join(parts)
 
 
+def _lookup_interface_by_mac(nb, mac_norm):
+    """Find a NetBox interface by MAC across NetBox 4.5 and older clients."""
+    try:
+        from dcim.models import MACAddress, Interface as DjangoInterface
+        from django.contrib.contenttypes.models import ContentType
+
+        interface_types = [ContentType.objects.get_for_model(DjangoInterface)]
+        try:
+            from virtualization.models import VMInterface
+            interface_types.append(ContentType.objects.get_for_model(VMInterface))
+        except Exception:
+            pass
+
+        mac_obj = (
+            MACAddress.objects.filter(
+                mac_address=mac_norm,
+                assigned_object_type__in=interface_types,
+                assigned_object_id__isnull=False,
+            )
+            .first()
+        )
+        if mac_obj and mac_obj.assigned_object:
+            return mac_obj.assigned_object
+        return (
+            DjangoInterface.objects.filter(primary_mac_address__mac_address=mac_norm)
+            .select_related("device")
+            .first()
+        )
+    except Exception as exc:
+        logger.debug(f"NetBox MACAddress lookup for {mac_norm}: {exc}")
+
+    try:
+        ifaces = nb.dcim.interfaces.filter(mac_address=mac_norm)
+        if ifaces:
+            return ifaces[0]
+    except Exception as exc:
+        logger.debug(f"Legacy interface lookup for MAC {mac_norm}: {exc}")
+    return None
+
+
+def _assignment_object_type(obj) -> str:
+    try:
+        raw = object.__getattribute__(obj, "_instance")
+    except AttributeError:
+        raw = obj
+    meta = getattr(raw, "_meta", None)
+    if meta:
+        return f"{meta.app_label}.{meta.model_name}"
+    return "dcim.interface"
+
+
 def sync_client_ips(nb, site_obj, nb_site, tenant):
     """Sync UniFi client IP addresses to NetBox IPAM.
 
@@ -1249,9 +1306,7 @@ def sync_client_ips(nb, site_obj, nb_site, tenant):
             continue
 
         # Normalize MAC to uppercase colon-separated XX:XX:XX:XX:XX:XX
-        mac_norm = mac_raw.upper().replace("-", ":").replace(".", ":")
-        if ":" not in mac_norm and len(mac_norm) == 12:
-            mac_norm = ":".join(mac_norm[i:i+2] for i in range(0, 12, 2))
+        mac_norm = _normalize_mac(mac_raw)
 
         reported_last_seen = client.get("last_seen") or client.get("lastSeen") or client.get("lastSeenAt")
         last_seen = reported_last_seen or now_ts
@@ -1298,14 +1353,7 @@ def sync_client_ips(nb, site_obj, nb_site, tenant):
         prefix_len = str(prefixes[0].prefix).split("/")[1]
         ip_with_mask = f"{ip_str}/{prefix_len}"
 
-        # Find NetBox interface by MAC address
-        interface = None
-        try:
-            ifaces = nb.dcim.interfaces.filter(mac_address=mac_norm)
-            if ifaces:
-                interface = ifaces[0]
-        except Exception as e:
-            logger.debug(f"Interface lookup for MAC {mac_norm}: {e}")
+        interface = _lookup_interface_by_mac(nb, mac_norm)
 
         try:
             nb_ip = nb.ipam.ip_addresses.get(address=ip_with_mask)
@@ -1316,9 +1364,10 @@ def sync_client_ips(nb, site_obj, nb_site, tenant):
                     needs_update = True
                 if interface:
                     cur_id = getattr(nb_ip, "assigned_object_id", None)
+                    assigned_object_type = _assignment_object_type(interface)
                     cur_type = str(getattr(nb_ip, "assigned_object_type", "") or "")
-                    if cur_type != "dcim.interface" or str(cur_id or "") != str(interface.id):
-                        nb_ip.assigned_object_type = "dcim.interface"
+                    if cur_type != assigned_object_type or str(cur_id or "") != str(interface.id):
+                        nb_ip.assigned_object_type = assigned_object_type
                         nb_ip.assigned_object_id = interface.id
                         needs_update = True
                 cur_tags = [t.id for t in (nb_ip.tags or [])]
@@ -1336,7 +1385,7 @@ def sync_client_ips(nb, site_obj, nb_site, tenant):
                     "description": description,
                 }
                 if interface:
-                    payload["assigned_object_type"] = "dcim.interface"
+                    payload["assigned_object_type"] = _assignment_object_type(interface)
                     payload["assigned_object_id"] = interface.id
                 nb_ip = nb.ipam.ip_addresses.create(payload)
                 if nb_ip:
@@ -1738,9 +1787,7 @@ def _set_interface_mac(iface_obj, mac_str):
         from django.contrib.contenttypes.models import ContentType
 
         # Normalise to "AA:BB:CC:DD:EE:FF"
-        clean = mac_str.upper().replace("-", ":").replace(".", ":")
-        if ":" not in clean and len(clean) == 12:
-            clean = ":".join(clean[i:i+2] for i in range(0, 12, 2))
+        clean = _normalize_mac(mac_str)
 
         # Get underlying Django instance from _OrmObject wrapper if needed
         try:

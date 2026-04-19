@@ -15,6 +15,25 @@ PyPI publisher must match exactly:
 - Workflow: `publish-python-package.yml`
 - Environment: `pypi`
 
+## Maintainer: Release to PyPI
+
+1. Bump version in:
+   - `pyproject.toml` (`[project].version`)
+   - `netbox_unifi_sync/version.py` (`__version__`)
+   - `netbox-plugin.yaml` (`compatibility[].release`)
+2. Configure PyPI Trusted Publisher (OIDC) for this repository/workflow.
+3. Create tag `vX.Y.Z` either:
+   - via GitHub Actions `Create Release Tag (manual)` (recommended), or
+   - manually with git:
+
+```bash
+git tag -a vX.Y.Z -m "Release vX.Y.Z"
+git push origin vX.Y.Z
+```
+
+4. `release.yml` runs on the tag push, gates on lint/tests, and creates the GitHub Release.
+5. `publish-python-package.yml` runs on `release: published` and publishes to PyPI (can also be run manually for retry).
+
 ## Release flow
 
 1. Bump version in:

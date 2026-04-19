@@ -4,6 +4,16 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+### Documentation
+
+- Added a targeted troubleshooting checklist for runs that report `controllers=1 sites=1 devices=0`, including worker-log checks and UniFi API scope verification steps.
+
+## [0.3.22] - 2026-04-19
+
+### Changed
+
+- **Release instructions clarified** — documented maintainer release flow for version bumps, PyPI Trusted Publisher (OIDC), tagging, and workflow sequencing for `release.yml` and `publish-python-package.yml`.
+
 ## [0.3.21] - 2026-04-06
 
 ### Fixed

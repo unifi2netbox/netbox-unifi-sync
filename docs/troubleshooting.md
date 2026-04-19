@@ -74,14 +74,29 @@ python manage.py showmigrations netbox_unifi_sync
 python manage.py check
 ```
 
-### No devices created
+### No devices created (`controllers=1 sites=1 devices=0`)
 
-Check in order:
+If a run shows one controller + one site but zero devices, check in this order:
 
 1. Controller test connection passes
 2. `tenant_name` + `netbox_roles` are configured
 3. Site mappings are correct
 4. Run detail does not contain skipped site mapping warnings
+5. Open worker logs and confirm per-site device fetch count:
+   - look for `Fetching devices for site:` and `Found N devices for site`
+   - if `N=0`, UniFi returned an empty device list for that site
+6. Verify API access scope on the UniFi side:
+   - for `api_key` mode, confirm the key can read **devices** for that specific site (not just controller metadata)
+   - use a **local controller Integration API key** (cloud `unifi.ui.com` tokens are not a drop-in replacement)
+   - if unsure, test with a full-access local API key or temporarily test `login` mode
+7. Verify the site actually has adopted/managed UniFi devices (not only wireless clients)
+8. Run a dry-run and inspect JSON totals:
+
+```bash
+python manage.py netbox_unifi_sync_run --dry-run --json
+```
+
+If dry-run also reports `devices: 0` while the site has managed hardware, include run detail + worker logs when opening an issue.
 
 ### Prefix exists but DHCP range missing
 

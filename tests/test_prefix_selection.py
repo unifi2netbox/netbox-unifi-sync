@@ -65,9 +65,9 @@ def test_sync_client_ips_uses_most_specific_matching_prefix(monkeypatch):
     ])
     site_obj = SimpleNamespace(client=FakeListEndpoint([
         {
-            "mac": "aa:bb:cc:dd:ee:ff",
-            "ip": "10.0.0.10",
-            "hostname": "printer-01",
+            "macAddress": "aa:bb:cc:dd:ee:ff",
+            "ipAddress": "10.0.0.10",
+            "name": "printer-01",
         }
     ]))
 
@@ -79,3 +79,6 @@ def test_sync_client_ips_uses_most_specific_matching_prefix(monkeypatch):
     )
 
     assert nb.ipam.ip_addresses.create_calls[0]["address"] == "10.0.0.10/29"
+    assert nb.ipam.ip_addresses.create_calls[0]["description"] == (
+        "unifi-client:AA:BB:CC:DD:EE:FF | UniFi client: printer-01 | IP: 10.0.0.10"
+    )

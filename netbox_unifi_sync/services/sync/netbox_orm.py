@@ -24,7 +24,6 @@ already uses::
 """
 from __future__ import annotations
 
-import ipaddress
 import logging
 from typing import Any
 
@@ -32,18 +31,17 @@ logger = logging.getLogger(__name__)
 
 
 def _normalize_iprange_address_value(model, key: str, value: Any) -> Any:
-    """Match pynetbox IPRange behaviour by stripping masks from host endpoints."""
+    """Convert IPRange endpoint strings to NetBox's IPNetwork field value."""
     if getattr(model, "__name__", "") != "IPRange":
         return value
     if key not in {"start_address", "end_address"} or not isinstance(value, str):
         return value
 
     text = value.strip()
-    if "/" not in text:
-        return value
 
     try:
-        return str(ipaddress.ip_interface(text).ip)
+        from netaddr import IPNetwork
+        return IPNetwork(text)
     except ValueError:
         return value
 
@@ -141,7 +139,11 @@ class _OrmObject:
         # passes PKs after reading tag IDs via __getattr__).
         if name == "tags":
             try:
-                instance.tags.set(value or [])
+                tags = list(value or [])
+                if tags and all(isinstance(item, int) for item in tags):
+                    from extras.models import Tag
+                    tags = list(Tag.objects.filter(pk__in=tags))
+                instance.tags.set(tags)
             except Exception as exc:
                 logger.debug("ORM: could not set tags on %r: %s", instance, exc)
             return

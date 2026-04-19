@@ -22,6 +22,7 @@
           <td>{{ row.enabled }}</td>
           <td class="text-end">
             <a href="{% url 'plugins:netbox_unifi_sync:mapping_edit' row.pk %}" class="btn btn-sm btn-outline-primary">Edit</a>
+            <a href="{% url 'plugins:netbox_unifi_sync:mapping_changelog' row.pk %}" class="btn btn-sm btn-outline-secondary">Change Log</a>
             <a href="{% url 'plugins:netbox_unifi_sync:mapping_delete' row.pk %}" class="btn btn-sm btn-outline-danger">Delete</a>
           </td>
         </tr>

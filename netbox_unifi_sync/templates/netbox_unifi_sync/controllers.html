@@ -33,6 +33,7 @@
               <button type="submit" class="btn btn-sm btn-outline-secondary">Test</button>
             </form>
             <a href="{% url 'plugins:netbox_unifi_sync:controller_edit' c.pk %}" class="btn btn-sm btn-outline-primary">Edit</a>
+            <a href="{% url 'plugins:netbox_unifi_sync:controller_changelog' c.pk %}" class="btn btn-sm btn-outline-secondary">Change Log</a>
             <a href="{% url 'plugins:netbox_unifi_sync:controller_delete' c.pk %}" class="btn btn-sm btn-outline-danger">Delete</a>
           </td>
         </tr>

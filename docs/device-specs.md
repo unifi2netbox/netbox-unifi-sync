@@ -91,6 +91,7 @@ When `sync_client_ips` is enabled, UniFi client IP addresses are tagged
 UniFi reports it:
 
 - hostname/display name
+- IP address
 - SSID
 - AP name
 - signal

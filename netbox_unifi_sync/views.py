@@ -1,7 +1,12 @@
 from __future__ import annotations
 
+from uuid import uuid4
+
+from core.choices import ObjectChangeActionChoices
+from core.models import ObjectChange
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required, permission_required
+from django.contrib.contenttypes.models import ContentType
 from django.db.models import Q
 from django.http import HttpRequest, HttpResponse, HttpResponseForbidden, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
@@ -34,6 +39,26 @@ def _can_test_controller(user) -> bool:
     return user.has_perm("netbox_unifi_sync.test_controller") or user.has_perm(
         "netbox_unifi_sync.change_unificontroller"
     )
+
+
+def _record_object_change(request: HttpRequest, obj, action: str) -> None:
+    if not hasattr(obj, "to_objectchange"):
+        return
+    request_id = getattr(request, "id", None) or uuid4()
+    content_type = ContentType.objects.get_for_model(obj)
+    if ObjectChange.objects.filter(
+        changed_object_type=content_type,
+        changed_object_id=obj.pk,
+        request_id=request_id,
+        action=action,
+    ).exists():
+        return
+    objectchange = obj.to_objectchange(action)
+    if not objectchange or not objectchange.has_changes:
+        return
+    objectchange.user = request.user
+    objectchange.request_id = request_id
+    objectchange.save()
 
 
 @login_required
@@ -113,9 +138,15 @@ def settings_view(request: HttpRequest) -> HttpResponse:
     form = GlobalSyncSettingsForm(instance=settings_obj)
 
     if request.method == "POST":
+        settings_obj.snapshot()
         form = GlobalSyncSettingsForm(request.POST, instance=settings_obj)
         if form.is_valid():
-            form.save()
+            obj = form.save()
+            _record_object_change(
+                request,
+                obj,
+                ObjectChangeActionChoices.ACTION_UPDATE,
+            )
             record_event(
                 action="settings.update",
                 status="success",
@@ -149,9 +180,16 @@ def controller_edit_view(request: HttpRequest, pk: int | None = None) -> HttpRes
     form = UnifiControllerForm(instance=controller)
 
     if request.method == "POST":
+        if controller:
+            controller.snapshot()
         form = UnifiControllerForm(request.POST, instance=controller)
         if form.is_valid():
             obj = form.save()
+            _record_object_change(
+                request,
+                obj,
+                ObjectChangeActionChoices.ACTION_UPDATE if controller else ObjectChangeActionChoices.ACTION_CREATE,
+            )
             action = "controller.update" if controller else "controller.create"
             record_event(
                 action=action,
@@ -291,9 +329,16 @@ def mapping_edit_view(request: HttpRequest, pk: int | None = None) -> HttpRespon
     mapping = get_object_or_404(SiteMapping, pk=pk) if pk else None
     form = SiteMappingForm(instance=mapping)
     if request.method == "POST":
+        if mapping:
+            mapping.snapshot()
         form = SiteMappingForm(request.POST, instance=mapping)
         if form.is_valid():
             row = form.save()
+            _record_object_change(
+                request,
+                row,
+                ObjectChangeActionChoices.ACTION_UPDATE if mapping else ObjectChangeActionChoices.ACTION_CREATE,
+            )
             messages.success(request, "Site mapping saved")
             record_event(
                 action="mapping.save",

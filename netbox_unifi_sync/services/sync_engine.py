@@ -1183,7 +1183,10 @@ def _client_description(client_data):
     parts = [f"unifi-client:{client_data['mac']}"]
     hostname = str(client_data.get("hostname") or "").strip()
     if hostname and hostname != client_data["mac"]:
-        parts.append(f"Host: {hostname}")
+        parts.append(f"UniFi client: {hostname}")
+    ip_address = str(client_data.get("ip") or "").strip()
+    if ip_address:
+        parts.append(f"IP: {ip_address}")
     ssid = str(client_data.get("ssid") or "").strip()
     if ssid:
         parts.append(f"SSID: {ssid}")
@@ -1198,7 +1201,10 @@ def _client_description(client_data):
         try:
             parts.append(f"Last seen: {int(float(last_seen))}")
         except (TypeError, ValueError):
-            pass
+            parts.append(f"Last seen: {last_seen}")
+    connected_at = client_data.get("connected_at")
+    if connected_at not in (None, ""):
+        parts.append(f"Connected: {connected_at}")
     return " | ".join(parts)
 
 
@@ -1237,8 +1243,8 @@ def sync_client_ips(nb, site_obj, nb_site, tenant):
     # Build lookup: normalized-MAC -> client data (active clients only, last_seen < 24h)
     active_clients = {}
     for client in clients:
-        mac_raw = client.get("mac") or ""
-        ip_str = client.get("ip") or client.get("fixed_ip") or ""
+        mac_raw = client.get("mac") or client.get("macAddress") or ""
+        ip_str = client.get("ip") or client.get("fixed_ip") or client.get("ipAddress") or ""
         if not mac_raw or not ip_str:
             continue
 
@@ -1247,7 +1253,8 @@ def sync_client_ips(nb, site_obj, nb_site, tenant):
         if ":" not in mac_norm and len(mac_norm) == 12:
             mac_norm = ":".join(mac_norm[i:i+2] for i in range(0, 12, 2))
 
-        last_seen = client.get("last_seen") or client.get("lastSeen") or now_ts
+        reported_last_seen = client.get("last_seen") or client.get("lastSeen") or client.get("lastSeenAt")
+        last_seen = reported_last_seen or now_ts
         try:
             last_seen = float(last_seen)
         except (TypeError, ValueError):
@@ -1261,7 +1268,8 @@ def sync_client_ips(nb, site_obj, nb_site, tenant):
         active_clients[mac_norm] = {
             "ip": ip_str,
             "mac": mac_norm,
-            "last_seen": last_seen,
+            "last_seen": reported_last_seen,
+            "connected_at": client.get("connectedAt") or client.get("connected_at"),
             "hostname": hostname,
             "ssid": client.get("essid") or client.get("ssid") or client.get("wlan_name"),
             "ap_name": client.get("ap_name") or client.get("apName") or client.get("radio_name"),

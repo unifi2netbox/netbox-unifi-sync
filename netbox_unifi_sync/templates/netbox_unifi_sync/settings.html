@@ -4,6 +4,11 @@
 
 {% block content %}
 
+<div class="d-flex justify-content-end mb-3">
+  <a href="{% url 'plugins:netbox_unifi_sync:settings_changelog' %}" class="btn btn-sm btn-outline-secondary">
+    <i class="mdi mdi-history me-1"></i> Change Log
+  </a>
+</div>
 
 <form method="post" novalidate>
 {% csrf_token %}

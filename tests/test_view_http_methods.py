@@ -13,6 +13,21 @@ CONTROLLERS_TEMPLATE_PATH = (
     / "netbox_unifi_sync"
     / "controllers.html"
 )
+MAPPINGS_TEMPLATE_PATH = (
+    PROJECT_ROOT
+    / "netbox_unifi_sync"
+    / "templates"
+    / "netbox_unifi_sync"
+    / "mappings.html"
+)
+SETTINGS_TEMPLATE_PATH = (
+    PROJECT_ROOT
+    / "netbox_unifi_sync"
+    / "templates"
+    / "netbox_unifi_sync"
+    / "settings.html"
+)
+URLS_PATH = PROJECT_ROOT / "netbox_unifi_sync" / "urls.py"
 
 
 def _decorator_name(node: ast.AST) -> str:
@@ -72,3 +87,26 @@ def test_controller_test_permission_accepts_standard_change_permission():
     assert "def _can_test_controller" in source
     assert "netbox_unifi_sync.test_controller" in source
     assert "netbox_unifi_sync.change_unificontroller" in source
+
+
+def test_plugin_changelog_routes_and_links_are_registered():
+    urls = URLS_PATH.read_text(encoding="utf-8")
+    controllers_template = CONTROLLERS_TEMPLATE_PATH.read_text(encoding="utf-8")
+    mappings_template = MAPPINGS_TEMPLATE_PATH.read_text(encoding="utf-8")
+    settings_template = SETTINGS_TEMPLATE_PATH.read_text(encoding="utf-8")
+
+    assert "ObjectChangeLogView" in urls
+    assert "settings_changelog" in urls
+    assert "controller_changelog" in urls
+    assert "mapping_changelog" in urls
+    assert "controller_changelog" in controllers_template
+    assert "mapping_changelog" in mappings_template
+    assert "settings_changelog" in settings_template
+
+
+def test_plugin_update_views_snapshot_before_save():
+    source = VIEWS_PATH.read_text(encoding="utf-8")
+
+    assert "settings_obj.snapshot()" in source
+    assert "controller.snapshot()" in source
+    assert "mapping.snapshot()" in source

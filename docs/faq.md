@@ -24,6 +24,8 @@ Yes. Add multiple enabled controllers in `Plugins -> UniFi Sync -> Controllers`.
 ### Can I run sync manually from UI?
 
 Yes. Open `Plugins -> UniFi Sync -> Sync Dashboard` and use `Run now`.
+The user needs `view` on `netbox_unifi_sync.SyncRun` to open the dashboard and
+`add` on `netbox_unifi_sync.SyncRun` to queue a manual sync.
 
 ## Data and Mapping
 

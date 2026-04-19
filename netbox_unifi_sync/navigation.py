@@ -13,7 +13,7 @@ items = (
                 link="plugins:netbox_unifi_sync:dashboard",
                 title="Run now",
                 icon_class="mdi mdi-play-circle",
-                permissions=["netbox_unifi_sync.run_sync"],
+                permissions=["netbox_unifi_sync.add_syncrun"],
             ),
         ),
     ),

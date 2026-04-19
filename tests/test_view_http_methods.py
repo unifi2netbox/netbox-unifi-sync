@@ -49,3 +49,18 @@ def test_controller_list_template_uses_post_for_test_action():
         "<form method=\"post\" action=\"{% url 'plugins:netbox_unifi_sync:controller_test' c.pk %}\""
         in template
     )
+
+
+def test_dashboard_sync_permission_accepts_standard_add_permission():
+    source = VIEWS_PATH.read_text(encoding="utf-8")
+    template = (
+        PROJECT_ROOT
+        / "netbox_unifi_sync"
+        / "templates"
+        / "netbox_unifi_sync"
+        / "dashboard.html"
+    ).read_text(encoding="utf-8")
+
+    assert "netbox_unifi_sync.run_sync" in source
+    assert "netbox_unifi_sync.add_syncrun" in source
+    assert "{% if can_queue_sync %}" in template

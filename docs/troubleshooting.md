@@ -74,6 +74,15 @@ python manage.py showmigrations netbox_unifi_sync
 python manage.py check
 ```
 
+### `Missing permission` on the sync dashboard
+
+The dashboard requires `view` permission on `netbox_unifi_sync.SyncRun`.
+Queueing a manual sync requires `add` permission on `netbox_unifi_sync.SyncRun`.
+
+The plugin still accepts the legacy custom permission
+`netbox_unifi_sync.run_sync`, but normal NetBox object permissions should use
+`netbox_unifi_sync.add_syncrun` for manual queueing.
+
 ### No devices created
 
 Check in order:

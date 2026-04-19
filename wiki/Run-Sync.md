@@ -6,6 +6,15 @@
 - Use **Run now** for manual sync
 - Use dry-run first when validating a new controller
 
+Required NetBox object permissions:
+
+- `view` on `netbox_unifi_sync.SyncRun` to open the dashboard
+- `add` on `netbox_unifi_sync.SyncRun` to queue a manual sync
+
+The plugin still accepts the legacy custom permission
+`netbox_unifi_sync.run_sync`, but the standard NetBox object permission for
+manual queueing is `netbox_unifi_sync.add_syncrun`.
+
 ## From CLI
 
 Dry-run:

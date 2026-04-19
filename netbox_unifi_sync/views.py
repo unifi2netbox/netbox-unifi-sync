@@ -24,6 +24,12 @@ from .services.orchestrator import (
 )
 
 
+def _can_queue_sync(user) -> bool:
+    return user.has_perm("netbox_unifi_sync.run_sync") or user.has_perm(
+        "netbox_unifi_sync.add_syncrun"
+    )
+
+
 @login_required
 @permission_required("netbox_unifi_sync.view_syncrun", raise_exception=True)
 def dashboard_view(request: HttpRequest) -> HttpResponse:
@@ -38,9 +44,9 @@ def dashboard_view(request: HttpRequest) -> HttpResponse:
         }
     )
     if request.method == "POST":
-        if not request.user.has_perm("netbox_unifi_sync.run_sync"):
+        if not _can_queue_sync(request.user):
             return HttpResponseForbidden(
-                "Missing permission: netbox_unifi_sync.run_sync"
+                "Missing permission: netbox_unifi_sync.run_sync or netbox_unifi_sync.add_syncrun"
             )
         form = RunActionForm(request.POST)
         if form.is_valid():
@@ -87,6 +93,7 @@ def dashboard_view(request: HttpRequest) -> HttpResponse:
         "recent_runs": recent_runs,
         "form": form,
         "controller_count": UnifiController.objects.filter(enabled=True).count(),
+        "can_queue_sync": _can_queue_sync(request.user),
     }
     return render(request, "netbox_unifi_sync/dashboard.html", context)
 

@@ -243,6 +243,23 @@ Recommended intervals:
 
 ---
 
+## NetBox Permissions
+
+For normal NetBox users, grant permissions through NetBox object permissions:
+
+- View dashboard/run history: `view` on `netbox_unifi_sync.SyncRun`
+- Queue a manual sync job: `add` on `netbox_unifi_sync.SyncRun`
+- Manage controllers: `view/add/change/delete` on `netbox_unifi_sync.UnifiController`
+- Manage site mappings: `view/add/change/delete` on `netbox_unifi_sync.SiteMapping`
+- Manage global settings: `view/change` on `netbox_unifi_sync.GlobalSyncSettings`
+- View audit log: `view` on `netbox_unifi_sync.PluginAuditEvent`
+
+The legacy custom permission `netbox_unifi_sync.run_sync` is still accepted by
+the view for compatibility, but NetBox object permissions map naturally to
+`netbox_unifi_sync.add_syncrun`.
+
+---
+
 ## Security Notes
 
 - SSL verification defaults to true

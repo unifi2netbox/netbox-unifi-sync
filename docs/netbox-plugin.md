@@ -68,6 +68,20 @@ Mounted under `/plugins/unifi-sync/api/`:
 
 ## Permissions
 
-- `netbox_unifi_sync.run_sync`
+For regular NetBox users, use NetBox object permissions:
+
+- Dashboard/run history/status API: `view` on `netbox_unifi_sync.SyncRun`
+- Manual sync queueing: `add` on `netbox_unifi_sync.SyncRun`
+- Controllers: `view/add/change/delete` on `netbox_unifi_sync.UnifiController`
+- Site mappings: `view/add/change/delete` on `netbox_unifi_sync.SiteMapping`
+- Settings: `view/change` on `netbox_unifi_sync.GlobalSyncSettings`
+- Audit log: `view` on `netbox_unifi_sync.PluginAuditEvent`
+
+Compatibility custom permissions still defined by the plugin:
+
+- `netbox_unifi_sync.run_sync` (accepted by the dashboard POST handler)
 - `netbox_unifi_sync.run_cleanup`
 - `netbox_unifi_sync.test_controller`
+
+In NetBox object permissions, queueing a sync is best represented as
+`netbox_unifi_sync.add_syncrun`.

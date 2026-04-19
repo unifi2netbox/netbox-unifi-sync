@@ -315,29 +315,29 @@ def prepare_netbox_sites(netbox_sites):
 
 def match_sites_to_netbox(ubiquity_desc, netbox_sites_dict, config=None):
     """
-    Match Ubiquity site to NetBox site using the site mapping configuration.
+    Match UniFi site to NetBox site using the site mapping configuration.
 
-    :param ubiquity_desc: The description of the Ubiquity site.
+    :param ubiquity_desc: The description of the UniFi site.
     :param netbox_sites_dict: A dictionary mapping NetBox site names to site objects.
     :param config: Runtime configuration dictionary
     :return: The matched NetBox site, or None if no match is found.
     """
     # Get the corresponding NetBox site name from the mapping
     netbox_site_name = get_netbox_site_name(ubiquity_desc, config)
-    logger.debug(f'Mapping Ubiquity site: "{ubiquity_desc}" -> "{netbox_site_name}"')
+    logger.debug(f'Mapping UniFi site: "{ubiquity_desc}" -> "{netbox_site_name}"')
     
     # Look for exact match in NetBox sites
     if netbox_site_name in netbox_sites_dict:
         netbox_site = netbox_sites_dict[netbox_site_name]
-        logger.debug(f'Matched Ubiquity site "{ubiquity_desc}" to NetBox site "{netbox_site.name}"')
+        logger.debug(f'Matched UniFi site "{ubiquity_desc}" to NetBox site "{netbox_site.name}"')
         return netbox_site
     
     # If site mapping exists but no match found, provide more helpful message
     if config and 'UNIFI' in config and ('USE_SITE_MAPPING' in config['UNIFI'] and config['UNIFI']['USE_SITE_MAPPING'] or 
                                         'SITE_MAPPINGS' in config['UNIFI'] and config['UNIFI']['SITE_MAPPINGS']):
-        logger.debug(f'No match found for Ubiquity site "{ubiquity_desc}". Add mapping in UNIFI_SITE_MAPPINGS.')
+        logger.debug(f'No match found for UniFi site "{ubiquity_desc}". Add mapping in UNIFI_SITE_MAPPINGS.')
     else:
-        logger.debug(f'No match found for Ubiquity site "{ubiquity_desc}". Set UNIFI_SITE_MAPPINGS in .env if needed.')
+        logger.debug(f'No match found for UniFi site "{ubiquity_desc}". Set UNIFI_SITE_MAPPINGS in .env if needed.')
     return None
 
 def setup_logging(min_log_level=logging.INFO):
@@ -2949,7 +2949,7 @@ def process_controller(unifi_url, unifi_username, unifi_password, unifi_mfa_secr
                 nb_site = match_sites_to_netbox(site_name, netbox_sites_dict, config)
 
                 if not nb_site:
-                    logger.warning(f"No match found for Ubiquity site: {site_name}. Skipping...")
+                    logger.warning(f"No match found for UniFi site: {site_name}. Skipping...")
                     continue
 
                 futures.append(executor.submit(process_site, unifi, nb, site_obj, site_name, nb_site, nb_ubiquity, tenant))

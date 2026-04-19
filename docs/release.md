@@ -6,6 +6,25 @@ This plugin is published as:
 - install command: `pip install netbox-unifi-sync`
 - project URL: <https://pypi.org/project/netbox-unifi-sync/>
 
+## Maintainer: Release to PyPI
+
+1. Bump version in:
+   - `pyproject.toml` (`[project].version`)
+   - `netbox_unifi_sync/version.py` (`__version__`)
+   - `netbox-plugin.yaml` (`compatibility[].release`)
+2. Configure **PyPI Trusted Publisher** (OIDC) for this repository/workflow if not already configured.
+3. Create tag `vX.Y.Z` either:
+   - via GitHub Actions **Create Release Tag (manual)** (recommended), or
+   - manually with git:
+
+```bash
+git tag -a vX.Y.Z -m "Release vX.Y.Z"
+git push origin vX.Y.Z
+```
+
+4. `release.yml` runs on the tag push, gates on lint/tests, and creates the GitHub Release.
+5. `publish-python-package.yml` runs on `release: published` and publishes to PyPI (can also be run manually for retry).
+
 ## One-Time Setup
 
 1. Create project on PyPI:

@@ -96,6 +96,20 @@ UniFi reports it:
 - signal
 - last seen timestamp
 
+## Runtime AP Radio Metadata
+
+For UniFi access points, radio interfaces are synced as NetBox wireless
+interfaces. When UniFi reports operational radio data, the interface description
+is enriched with:
+
+- band
+- channel
+- channel width
+- transmit power
+- channel utilization
+- noise floor
+- state/enabled status
+
 ## Auto-Create Device Types
 
 When UniFi reports an unknown model:

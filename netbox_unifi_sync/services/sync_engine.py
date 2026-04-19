@@ -1519,6 +1519,50 @@ def _build_port_description(port, *, is_uplink=False, poe=None, speed_mbps=None)
     return " | ".join(str(part) for part in parts if part)
 
 
+def _build_radio_description(radio):
+    parts = []
+    band = _first_port_value(radio, "band", "radio", "radioName", "radio_name")
+    if band:
+        parts.append(f"Band: {str(band).upper()}")
+
+    channel = _first_port_value(radio, "channel", "channelNumber", "channel_number")
+    if channel:
+        parts.append(f"Channel: {channel}")
+
+    width = _first_port_value(
+        radio,
+        "channelWidth",
+        "channel_width",
+        "ht",
+        "htMode",
+        "ht_mode",
+    )
+    if width:
+        parts.append(f"Width: {width}")
+
+    tx_power = _first_port_value(radio, "txPower", "tx_power", "tx_power_mode")
+    if tx_power:
+        suffix = "dBm" if str(tx_power).lstrip("-").isdigit() else ""
+        parts.append(f"TX: {tx_power}{suffix}")
+
+    utilization = _first_port_value(radio, "utilization", "cu_total", "channelUtilization")
+    if utilization not in (None, ""):
+        parts.append(f"Utilization: {utilization}%")
+
+    noise = _first_port_value(radio, "noise", "noiseFloor", "noise_floor")
+    if noise not in (None, ""):
+        parts.append(f"Noise: {noise}dBm")
+
+    enabled = _first_port_value(radio, "enabled", "isEnabled", "radio_enabled")
+    state = _first_port_value(radio, "state", "status")
+    if enabled is False:
+        parts.append("Disabled")
+    elif state:
+        parts.append(f"State: {state}")
+
+    return " | ".join(str(part) for part in parts if part)
+
+
 def normalize_port_data(device, api_style="integration"):
     """Extract and normalize port data from device dict into a common format."""
     ports = []
@@ -1626,22 +1670,14 @@ def normalize_radio_data(device, api_style="integration"):
         if "?" in name:
             continue
         nb_type = map_unifi_radio_to_netbox_type(radio)
-        # Build rich description: band, channel, tx power
-        desc_parts = []
-        band = radio.get("band") or radio.get("radio") or ""
-        if band:
-            desc_parts.append(str(band).upper())
-        channel = radio.get("channel")
-        if channel:
-            desc_parts.append(f"Ch {channel}")
-        tx_power = radio.get("txPower") or radio.get("tx_power") or radio.get("tx_power_mode")
-        if tx_power:
-            desc_parts.append(f"TX {tx_power}dBm" if str(tx_power).isdigit() else f"TX {tx_power}")
+        enabled = _first_port_value(radio, "enabled", "isEnabled", "radio_enabled")
+        if enabled is None:
+            enabled = True
         radios.append({
             "name": name,
             "type": nb_type,
-            "enabled": True,
-            "description": " | ".join(desc_parts) if desc_parts else "",
+            "enabled": bool(enabled),
+            "description": _build_radio_description(radio),
         })
     return radios
 

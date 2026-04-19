@@ -1,4 +1,4 @@
-from main import normalize_port_data
+from main import normalize_port_data, normalize_radio_data
 
 
 def test_normalize_integration_port_enriches_description_with_profile_vlan_and_poe():
@@ -65,3 +65,60 @@ def test_normalize_legacy_port_enriches_description_from_portconf_and_vlans():
         "PoE: off | Max speed: 1000Mbps"
     )
     assert ports[0]["mac_address"] == "aa:bb:cc:dd:ee:ff"
+
+
+def test_normalize_radio_data_enriches_description_with_operational_metadata():
+    radios = normalize_radio_data(
+        {
+            "interfaces": {
+                "radios": [
+                    {
+                        "name": "radio0",
+                        "band": "5GHz",
+                        "channel": 44,
+                        "channelWidth": "HE80",
+                        "txPower": 18,
+                        "utilization": 37,
+                        "noiseFloor": -95,
+                        "state": "RUNNING",
+                    }
+                ]
+            }
+        },
+        api_style="integration",
+    )
+
+    assert radios == [
+        {
+            "name": "radio0",
+            "type": "ieee802.11ac",
+            "enabled": True,
+            "description": (
+                "Band: 5GHZ | Channel: 44 | Width: HE80 | TX: 18dBm | "
+                "Utilization: 37% | Noise: -95dBm | State: RUNNING"
+            ),
+        }
+    ]
+
+
+def test_normalize_radio_data_marks_disabled_radios():
+    radios = normalize_radio_data(
+        {
+            "radio_table": [
+                {
+                    "name": "radio1",
+                    "radio": "ng",
+                    "channel": 6,
+                    "tx_power_mode": "auto",
+                    "enabled": False,
+                }
+            ]
+        },
+        api_style="legacy",
+    )
+
+    assert radios[0]["type"] == "ieee802.11n"
+    assert radios[0]["enabled"] is False
+    assert radios[0]["description"] == (
+        "Band: NG | Channel: 6 | TX: auto | Disabled"
+    )

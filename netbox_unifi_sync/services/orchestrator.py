@@ -145,7 +145,13 @@ def _build_override(
         "asset_tag_patterns": settings.asset_tag_patterns or [r"[-_]?(A?ID\d+)$"],
         "asset_tag_uppercase": settings.asset_tag_uppercase,
 
+        "sync_devices": settings.sync_devices,
         "sync_interfaces": settings.sync_interfaces,
+        "sync_radio_interfaces": settings.sync_radio_interfaces,
+        "sync_gateway_interfaces": settings.sync_gateway_interfaces,
+        "sync_primary_ips": settings.sync_primary_ips,
+        "sync_device_status": settings.sync_device_status,
+        "sync_device_custom_fields": settings.sync_device_custom_fields,
         "sync_vlans": settings.sync_vlans,
         "sync_wlans": settings.sync_wlans,
         "sync_cables": settings.sync_cables,

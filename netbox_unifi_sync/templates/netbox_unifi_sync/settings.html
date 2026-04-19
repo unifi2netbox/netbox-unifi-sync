@@ -136,9 +136,64 @@
 
       <div class="col">
         <div class="form-check">
+          {{ form.sync_devices }}
+          <label class="form-check-label" for="{{ form.sync_devices.id_for_label }}">Sync devices</label>
+          <div class="text-muted small">Create/update UniFi devices in NetBox DCIM.</div>
+          {% for e in form.sync_devices.errors %}<div class="text-danger small mt-1">{{ e }}</div>{% endfor %}
+        </div>
+      </div>
+
+      <div class="col">
+        <div class="form-check">
           {{ form.sync_interfaces }}
           <label class="form-check-label" for="{{ form.sync_interfaces.id_for_label }}">Sync interfaces</label>
+          <div class="text-muted small">Create/update physical switch/AP ports.</div>
           {% for e in form.sync_interfaces.errors %}<div class="text-danger small mt-1">{{ e }}</div>{% endfor %}
+        </div>
+      </div>
+
+      <div class="col">
+        <div class="form-check">
+          {{ form.sync_radio_interfaces }}
+          <label class="form-check-label" for="{{ form.sync_radio_interfaces.id_for_label }}">Sync AP radio interfaces</label>
+          <div class="text-muted small">Create/update Wi-Fi radios with channel, width, TX, utilization and noise metadata.</div>
+          {% for e in form.sync_radio_interfaces.errors %}<div class="text-danger small mt-1">{{ e }}</div>{% endfor %}
+        </div>
+      </div>
+
+      <div class="col">
+        <div class="form-check">
+          {{ form.sync_gateway_interfaces }}
+          <label class="form-check-label" for="{{ form.sync_gateway_interfaces.id_for_label }}">Sync gateway interfaces</label>
+          <div class="text-muted small">Create/update gateway VLAN/management interfaces and gateway IPs.</div>
+          {% for e in form.sync_gateway_interfaces.errors %}<div class="text-danger small mt-1">{{ e }}</div>{% endfor %}
+        </div>
+      </div>
+
+      <div class="col">
+        <div class="form-check">
+          {{ form.sync_primary_ips }}
+          <label class="form-check-label" for="{{ form.sync_primary_ips.id_for_label }}">Sync device primary IPs</label>
+          <div class="text-muted small">Assign UniFi management IPs to NetBox devices.</div>
+          {% for e in form.sync_primary_ips.errors %}<div class="text-danger small mt-1">{{ e }}</div>{% endfor %}
+        </div>
+      </div>
+
+      <div class="col">
+        <div class="form-check">
+          {{ form.sync_device_status }}
+          <label class="form-check-label" for="{{ form.sync_device_status.id_for_label }}">Sync online/offline status</label>
+          <div class="text-muted small">Update NetBox status from UniFi device state.</div>
+          {% for e in form.sync_device_status.errors %}<div class="text-danger small mt-1">{{ e }}</div>{% endfor %}
+        </div>
+      </div>
+
+      <div class="col">
+        <div class="form-check">
+          {{ form.sync_device_custom_fields }}
+          <label class="form-check-label" for="{{ form.sync_device_custom_fields.id_for_label }}">Sync UniFi custom fields</label>
+          <div class="text-muted small">Firmware, uptime, MAC address and last-seen custom fields.</div>
+          {% for e in form.sync_device_custom_fields.errors %}<div class="text-danger small mt-1">{{ e }}</div>{% endfor %}
         </div>
       </div>
 

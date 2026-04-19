@@ -25,7 +25,14 @@ def test_plugin_settings_to_env_maps_core_values(monkeypatch):
         "netbox_import_tenant": "Example Tenant",
         "netbox_roles": {"WIRELESS": "Wireless AP"},
         "unifi_site_mappings": {"Default": "HQ"},
+        "sync_devices": False,
         "sync_interfaces": True,
+        "sync_radio_interfaces": False,
+        "sync_gateway_interfaces": False,
+        "sync_primary_ips": False,
+        "sync_device_status": True,
+        "sync_device_custom_fields": False,
+        "dhcp_writeback_enabled": True,
     }
 
     env = plugin_settings_to_env(settings)
@@ -36,7 +43,15 @@ def test_plugin_settings_to_env_maps_core_values(monkeypatch):
     assert env["NETBOX_TOKEN"] == "nb-token"
     assert env["NETBOX_ROLES"] == '{"WIRELESS": "Wireless AP"}'
     assert env["UNIFI_SITE_MAPPINGS"] == '{"Default": "HQ"}'
+    assert env["SYNC_DEVICES"] == "false"
     assert env["SYNC_INTERVAL"] == "0"
+    assert env["SYNC_INTERFACES"] == "true"
+    assert env["SYNC_RADIO_INTERFACES"] == "false"
+    assert env["SYNC_GATEWAY_INTERFACES"] == "false"
+    assert env["SYNC_PRIMARY_IPS"] == "false"
+    assert env["SYNC_DEVICE_STATUS"] == "true"
+    assert env["SYNC_DEVICE_CUSTOM_FIELDS"] == "false"
+    assert env["DHCP_WRITEBACK_ENABLED"] == "true"
     assert "UNIFI_USERNAME" not in env
     assert "UNIFI_PASSWORD" not in env
 

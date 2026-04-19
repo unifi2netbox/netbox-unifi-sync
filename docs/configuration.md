@@ -75,7 +75,13 @@ Note: local Integration API keys are required for Integration API mode.
 ### Sync scope and behavior
 
 - `enabled`
+- `sync_devices`
 - `sync_interfaces`
+- `sync_radio_interfaces`
+- `sync_gateway_interfaces`
+- `sync_primary_ips`
+- `sync_device_status`
+- `sync_device_custom_fields`
 - `sync_vlans`
 - `sync_wlans`
 - `sync_cables`
@@ -98,8 +104,9 @@ Note: local Integration API keys are required for Integration API mode.
 - Prefix sync is enabled by default (`sync_prefixes = true`)
 - DHCP scopes are created as NetBox IP Ranges when `sync_dhcp_ranges = true` (default)
 
-Note: `dhcp_writeback_enabled` is currently kept for compatibility in settings storage.
-The DHCP-to-static logic is currently driven by detected DHCP ranges, not by this flag alone.
+`dhcp_writeback_enabled` gates the DHCP-to-static writeback path. When it is
+disabled, the plugin can still discover DHCP ranges and sync IPAM data, but it
+will not push a static IP change back to UniFi.
 
 ### Identity and mapping
 
@@ -172,7 +179,13 @@ The plugin maps UI state into these internal engine keys (for compatibility/debu
 | `NETBOX_SERIAL_MODE` | `serial_mode` |
 | `UNIFI_SITE_MAPPINGS` | `Site mappings` model rows |
 | `UNIFI_TAG_STRATEGY` | `tag_strategy` |
+| `SYNC_DEVICES` | `sync_devices` |
 | `SYNC_INTERFACES` | `sync_interfaces` |
+| `SYNC_RADIO_INTERFACES` | `sync_radio_interfaces` |
+| `SYNC_GATEWAY_INTERFACES` | `sync_gateway_interfaces` |
+| `SYNC_PRIMARY_IPS` | `sync_primary_ips` |
+| `SYNC_DEVICE_STATUS` | `sync_device_status` |
+| `SYNC_DEVICE_CUSTOM_FIELDS` | `sync_device_custom_fields` |
 | `SYNC_VLANS` | `sync_vlans` |
 | `SYNC_WLANS` | `sync_wlans` |
 | `SYNC_CABLES` | `sync_cables` |
@@ -203,7 +216,9 @@ These are valid in `PLUGINS_CONFIG["netbox_unifi_sync"]` when you need preseed d
 - `unifi_site_mappings`
 - `tag_strategy`, `default_tags`
 - `asset_tag_enabled`, `asset_tag_patterns`, `asset_tag_uppercase`
-- `sync_interfaces`, `sync_vlans`, `sync_wlans`, `sync_cables`, `sync_stale_cleanup`, `sync_client_ips`
+- `sync_devices`, `sync_interfaces`, `sync_radio_interfaces`, `sync_gateway_interfaces`, `sync_primary_ips`
+- `sync_device_status`, `sync_device_custom_fields`, `sync_vlans`, `sync_wlans`, `sync_cables`
+- `sync_stale_cleanup`, `sync_client_ips`
 - `dhcp_auto_discover`, `dhcp_ranges`, `sync_dhcp_ranges`, `default_gateway`, `default_dns`
 - `netbox_device_status`, `sync_prefixes`
 - `cleanup_enabled`, `cleanup_grace_days`

@@ -65,7 +65,31 @@ class GlobalSyncSettings(_ChangeLoggingMixin, models.Model):
         help_text="Map UniFi role keys to NetBox device role names",
     )
 
+    sync_devices = models.BooleanField(
+        default=True,
+        help_text="Create and update UniFi network devices in NetBox DCIM.",
+    )
     sync_interfaces = models.BooleanField(default=True)
+    sync_radio_interfaces = models.BooleanField(
+        default=True,
+        help_text="Sync UniFi AP radios as NetBox wireless interfaces.",
+    )
+    sync_gateway_interfaces = models.BooleanField(
+        default=True,
+        help_text="Sync UniFi gateway VLAN/management interfaces and gateway IPs.",
+    )
+    sync_primary_ips = models.BooleanField(
+        default=True,
+        help_text="Assign UniFi device management IPs as NetBox primary IPs.",
+    )
+    sync_device_status = models.BooleanField(
+        default=False,
+        help_text="Update NetBox device status from UniFi online/offline state.",
+    )
+    sync_device_custom_fields = models.BooleanField(
+        default=True,
+        help_text="Sync UniFi firmware, uptime, MAC, and last-seen values to NetBox custom fields.",
+    )
     sync_vlans = models.BooleanField(default=True)
     sync_wlans = models.BooleanField(default=True)
     sync_cables = models.BooleanField(default=True)

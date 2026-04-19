@@ -37,6 +37,11 @@ from .unifi.spec_refresh import refresh_specs_bundle, write_specs_bundle
 warnings.simplefilter("ignore", InsecureRequestWarning)
 logger = logging.getLogger(__name__)
 
+
+def _sync_option(env_name: str, *, default: bool = True) -> bool:
+    return _parse_env_bool(os.getenv(env_name), default=default)
+
+
 # ---------------------------------------------------------------------------
 # pynetbox compatibility shim
 # ---------------------------------------------------------------------------
@@ -1756,7 +1761,7 @@ def sync_device_interfaces(nb, nb_device, device, api_style="integration", unifi
     Sync physical port and radio interfaces from UniFi device data to NetBox.
     Upsert: match by device_id + interface name, create if missing, update if changed.
     """
-    if os.getenv("SYNC_INTERFACES", "true").strip().lower() not in ("true", "1", "yes"):
+    if not _sync_option("SYNC_INTERFACES", default=True):
         return
 
     device_name = get_device_name(device)
@@ -1868,7 +1873,8 @@ def sync_device_interfaces(nb, nb_device, device, api_style="integration", unifi
             _set_interface_mac(first_iface, device_mac)
 
     # --- Radio Interfaces (APs only) ---
-    if is_access_point_device(device):
+    sync_radios = _sync_option("SYNC_RADIO_INTERFACES", default=True)
+    if sync_radios and is_access_point_device(device):
         radios = normalize_radio_data(device, api_style)
         for radio in radios:
             iface_name = radio["name"]
@@ -1922,7 +1928,7 @@ def sync_device_interfaces(nb, nb_device, device, api_style="integration", unifi
 
     # Remove stale sync-created interfaces no longer present in UniFi data.
     expected_iface_names = {p["name"] for p in ports}
-    if is_access_point_device(device):
+    if sync_radios and is_access_point_device(device):
         expected_iface_names |= {r["name"] for r in normalize_radio_data(device, api_style)}
     for iface_name, iface_obj in existing_interfaces.items():
         if iface_name == "vlan.1" or iface_name in expected_iface_names or "?" in iface_name:
@@ -2698,11 +2704,18 @@ def process_device(unifi, nb, site, device, nb_ubiquity, tenant, unifi_device_ip
                     nb_device.save()
                     logger.info(f"Added 'zabbix' tag to device {device_name}.")
 
+            if _sync_option("SYNC_DEVICE_STATUS", default=False):
+                try:
+                    sync_device_state(nb, nb_device, device)
+                except Exception as e:
+                    logger.warning(f"Failed to sync device status for {device_name}: {e}")
+
             # Sync custom fields (firmware, uptime, mac)
-            try:
-                sync_device_custom_fields(nb, nb_device, device)
-            except Exception as e:
-                logger.warning(f"Failed to sync custom fields for {device_name}: {e}")
+            if _sync_option("SYNC_DEVICE_CUSTOM_FIELDS", default=True):
+                try:
+                    sync_device_custom_fields(nb, nb_device, device)
+                except Exception as e:
+                    logger.warning(f"Failed to sync custom fields for {device_name}: {e}")
 
             # Sync physical interfaces from UniFi to NetBox
             try:
@@ -2715,13 +2728,20 @@ def process_device(unifi, nb, site, device, nb_ubiquity, tenant, unifi_device_ip
         # GATEWAY: sync VLAN interfaces + gateway IPs; ROUTER: skip (no network_conf access).
         role_key = infer_role_key_for_device(device)
         if role_key == "GATEWAY" and nb_device and unifi_site_obj:
-            try:
-                sync_gateway_interfaces(nb, nb_device, device, unifi_site_obj, tenant, vrf, unifi=unifi)
-            except Exception as e:
-                logger.warning(f"Failed to sync gateway interfaces for {device_name}: {e}")
+            if _sync_option("SYNC_GATEWAY_INTERFACES", default=True):
+                try:
+                    sync_gateway_interfaces(nb, nb_device, device, unifi_site_obj, tenant, vrf, unifi=unifi)
+                except Exception as e:
+                    logger.warning(f"Failed to sync gateway interfaces for {device_name}: {e}")
+            else:
+                logger.debug(f"Skipping gateway interface sync for {device_name}")
             return
         if role_key in ("GATEWAY", "ROUTER"):
             logger.debug(f"Skipping IP assignment for {device_name} — device is a {role_key}")
+            return
+
+        if not _sync_option("SYNC_PRIMARY_IPS", default=True):
+            logger.debug(f"Skipping primary IP sync for {device_name}")
             return
 
         if not device_ip:
@@ -2762,7 +2782,7 @@ def process_device(unifi, nb, site, device, nb_ubiquity, tenant, unifi_device_ip
                 if dhcp_prefixes:
                     target_prefix = dhcp_prefixes[0]
                     static_ip = find_available_static_ip(nb, target_prefix, vrf, tenant, unifi_device_ips=unifi_device_ips)
-                    if static_ip:
+                    if static_ip and _sync_option("DHCP_WRITEBACK_ENABLED", default=False):
                         logger.info(f"Reassigning {device_name} from DHCP {device_ip} to static {static_ip}")
                         new_ip = static_ip.split("/")[0]
                         # Set static IP on UniFi device with gateway + DNS from network config
@@ -2775,6 +2795,11 @@ def process_device(unifi, nb, site, device, nb_ubiquity, tenant, unifi_device_ip
                                 subnet_mask=subnet_mask, gateway=gw, dns_servers=dns
                             )
                         device_ip = new_ip
+                    elif static_ip:
+                        logger.info(
+                            f"Static IP {static_ip} is available for {device_name}, "
+                            "but DHCP writeback is disabled; keeping current DHCP assignment"
+                        )
                     else:
                         logger.info("No available static IP found; keeping current DHCP assignment")
                 else:
@@ -2981,6 +3006,10 @@ def process_site(unifi, nb, site_obj, site_display_name, nb_site, nb_ubiquity, t
                         sync_site_dhcp_ip_ranges(nb, nb_site, tenant, site_dhcp_pools)
                 except Exception as e:
                     logger.warning(f"Failed to extract DHCP ranges for site {site_display_name}: {e}")
+
+            if not _sync_option("SYNC_DEVICES", default=True):
+                logger.info(f"Device sync disabled for site {site_display_name}; skipping devices, interfaces, IPs, and cables")
+                return
 
             logger.debug(f"Fetching devices for site: {site_display_name}")
             devices = site_obj.device.all()

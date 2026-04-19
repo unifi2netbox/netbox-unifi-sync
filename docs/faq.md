@@ -6,7 +6,7 @@
 
 Primarily no. Normal direction is **UniFi -> NetBox**.  
 Writeback can happen in DHCP-to-static flow when a device is detected with a DHCP IP inside known DHCP ranges.
-`dhcp_writeback_enabled` is currently retained as a compatibility setting in the model, but is not the sole runtime gate.
+`dhcp_writeback_enabled` controls that writeback path. Keep it disabled when the sync must be read-only toward UniFi.
 
 ### Which UniFi API mode should I use?
 

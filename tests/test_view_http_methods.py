@@ -64,3 +64,11 @@ def test_dashboard_sync_permission_accepts_standard_add_permission():
     assert "netbox_unifi_sync.run_sync" in source
     assert "netbox_unifi_sync.add_syncrun" in source
     assert "{% if can_queue_sync %}" in template
+
+
+def test_controller_test_permission_accepts_standard_change_permission():
+    source = VIEWS_PATH.read_text(encoding="utf-8")
+
+    assert "def _can_test_controller" in source
+    assert "netbox_unifi_sync.test_controller" in source
+    assert "netbox_unifi_sync.change_unificontroller" in source

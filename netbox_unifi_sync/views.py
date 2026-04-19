@@ -30,6 +30,12 @@ def _can_queue_sync(user) -> bool:
     )
 
 
+def _can_test_controller(user) -> bool:
+    return user.has_perm("netbox_unifi_sync.test_controller") or user.has_perm(
+        "netbox_unifi_sync.change_unificontroller"
+    )
+
+
 @login_required
 @permission_required("netbox_unifi_sync.view_syncrun", raise_exception=True)
 def dashboard_view(request: HttpRequest) -> HttpResponse:
@@ -192,9 +198,12 @@ def controller_delete_view(request: HttpRequest, pk: int) -> HttpResponse:
 
 
 @login_required
-@permission_required("netbox_unifi_sync.test_controller", raise_exception=True)
 @require_POST
 def controller_test_view(request: HttpRequest, pk: int) -> HttpResponse:
+    if not _can_test_controller(request.user):
+        return HttpResponseForbidden(
+            "Missing permission: netbox_unifi_sync.test_controller or netbox_unifi_sync.change_unificontroller"
+        )
     controller = get_object_or_404(UnifiController, pk=pk)
     settings_obj = get_or_create_global_settings()
     try:
@@ -235,9 +244,16 @@ def controller_test_view(request: HttpRequest, pk: int) -> HttpResponse:
 
 
 @login_required
-@permission_required("netbox_unifi_sync.test_controller", raise_exception=True)
 @require_POST
 def controller_test_api_view(request: HttpRequest, pk: int) -> JsonResponse:
+    if not _can_test_controller(request.user):
+        return JsonResponse(
+            {
+                "status": "error",
+                "error": "Missing permission: netbox_unifi_sync.test_controller or netbox_unifi_sync.change_unificontroller",
+            },
+            status=403,
+        )
     controller = get_object_or_404(UnifiController, pk=pk)
     settings_obj = get_or_create_global_settings()
     try:

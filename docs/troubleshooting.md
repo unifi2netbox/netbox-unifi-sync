@@ -83,6 +83,12 @@ The plugin still accepts the legacy custom permission
 `netbox_unifi_sync.run_sync`, but normal NetBox object permissions should use
 `netbox_unifi_sync.add_syncrun` for manual queueing.
 
+### `Missing permission` when testing a controller
+
+Testing controller connectivity requires `change` permission on
+`netbox_unifi_sync.UnifiController`. The legacy custom permission
+`netbox_unifi_sync.test_controller` is still accepted for compatibility.
+
 ### No devices created
 
 Check in order:

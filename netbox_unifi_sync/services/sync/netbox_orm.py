@@ -25,6 +25,7 @@ already uses::
 from __future__ import annotations
 
 import logging
+from ipaddress import ip_interface
 from typing import Any
 
 logger = logging.getLogger(__name__)
@@ -42,8 +43,16 @@ def _normalize_iprange_address_value(model, key: str, value: Any) -> Any:
     try:
         from netaddr import IPNetwork
         return IPNetwork(text)
+    except ImportError:
+        try:
+            return ip_interface(text)
+        except ValueError:
+            return value
     except ValueError:
-        return value
+        try:
+            return ip_interface(text)
+        except ValueError:
+            return value
 
 
 # ---------------------------------------------------------------------------

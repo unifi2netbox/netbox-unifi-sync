@@ -27,6 +27,7 @@ from .services.orchestrator import (
     get_or_create_global_settings,
     test_controller_connection,
 )
+from .services.sync_runs import mark_stale_sync_runs
 
 
 def _can_queue_sync(user) -> bool:
@@ -65,6 +66,7 @@ def _record_object_change(request: HttpRequest, obj, action: str) -> None:
 @permission_required("netbox_unifi_sync.view_syncrun", raise_exception=True)
 def dashboard_view(request: HttpRequest) -> HttpResponse:
     settings_obj = get_or_create_global_settings()
+    mark_stale_sync_runs()
     latest_run = SyncRun.objects.order_by("-created").first()
     recent_runs = SyncRun.objects.order_by("-created")[:10]
 
@@ -378,6 +380,7 @@ def mapping_delete_view(request: HttpRequest, pk: int) -> HttpResponse:
 @login_required
 @permission_required("netbox_unifi_sync.view_syncrun", raise_exception=True)
 def run_list_view(request: HttpRequest) -> HttpResponse:
+    mark_stale_sync_runs()
     queryset = SyncRun.objects.order_by("-created")
     form = RunFilterForm(request.GET)
     if form.is_valid():
@@ -417,6 +420,7 @@ def audit_list_view(request: HttpRequest) -> HttpResponse:
 @permission_required("netbox_unifi_sync.view_syncrun", raise_exception=True)
 def api_status_view(request: HttpRequest) -> JsonResponse:
     settings_obj = get_or_create_global_settings()
+    mark_stale_sync_runs()
     latest = SyncRun.objects.order_by("-created").first()
     payload = {
         "enabled": settings_obj.enabled,

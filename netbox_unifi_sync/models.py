@@ -40,6 +40,9 @@ class SyncRunStatus(models.TextChoices):
     SKIPPED = "skipped", "Skipped"
 
 
+MAX_DURATION_MS = 2_147_483_647
+
+
 class GlobalSyncSettings(_ChangeLoggingMixin, models.Model):
     singleton_key = models.CharField(max_length=32, unique=True, default="default")
 
@@ -365,7 +368,10 @@ class SyncRun(models.Model):
         self.summary = summary
         self.completed = timezone.now()
         if self.started:
-            self.duration_ms = max(0, int((self.completed - self.started).total_seconds() * 1000))
+            self.duration_ms = min(
+                MAX_DURATION_MS,
+                max(0, int((self.completed - self.started).total_seconds() * 1000)),
+            )
         self.status = SyncRunStatus.DRY_RUN if dry_run else SyncRunStatus.SUCCESS
         self.save(
             update_fields=[
@@ -386,7 +392,10 @@ class SyncRun(models.Model):
         self.error = str(message or "")
         self.completed = timezone.now()
         if self.started:
-            self.duration_ms = max(0, int((self.completed - self.started).total_seconds() * 1000))
+            self.duration_ms = min(
+                MAX_DURATION_MS,
+                max(0, int((self.completed - self.started).total_seconds() * 1000)),
+            )
         self.save(update_fields=["status", "error", "completed", "duration_ms"])
 
 

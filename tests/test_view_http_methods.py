@@ -28,6 +28,7 @@ SETTINGS_TEMPLATE_PATH = (
     / "settings.html"
 )
 URLS_PATH = PROJECT_ROOT / "netbox_unifi_sync" / "urls.py"
+SYNC_RUNS_PATH = PROJECT_ROOT / "netbox_unifi_sync" / "services" / "sync_runs.py"
 
 
 def _decorator_name(node: ast.AST) -> str:
@@ -117,3 +118,13 @@ def test_plugin_update_views_snapshot_before_save():
     assert "settings_obj.snapshot()" in source
     assert "controller.snapshot()" in source
     assert "mapping.snapshot()" in source
+
+
+def test_stale_sync_runs_are_reconciled_in_status_views():
+    views = VIEWS_PATH.read_text(encoding="utf-8")
+    sync_runs = SYNC_RUNS_PATH.read_text(encoding="utf-8")
+
+    assert "def mark_stale_sync_runs" in sync_runs
+    assert "status__in=(SyncRunStatus.PENDING, SyncRunStatus.RUNNING)" in sync_runs
+    assert "max_age_minutes: int = 120" in sync_runs
+    assert views.count("mark_stale_sync_runs()") >= 3

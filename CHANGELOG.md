@@ -4,6 +4,21 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+## [0.3.23] - 2026-04-20
+
+### Added
+
+- **Granular UniFi sync controls** — added UI/settings support for choosing which UniFi data domains should sync.
+- **UniFi client IP sync improvements** — client IPs now support Integration API field names, include richer descriptions, and can be assigned to NetBox DCIM/virtualization interfaces by MAC address.
+- **NetBox Change Log views** — added Change Log access for global settings, controllers, and site mappings.
+
+### Fixed
+
+- **Template routing and API namespace issues** — fixed plugin dashboard/template routing and made the UniFi status API route reverseable.
+- **ORM adapter edge cases** — fixed DHCP range creation, tag assignment by ID, duplicate interface create handling, and stale sync-run reconciliation.
+- **Integration API writeback behavior** — DHCP writeback now skips unsupported Integration API static-IP calls instead of logging 404 errors.
+- **Runtime cache permissions** — refreshed UniFi device specs cache now falls back to a writable service path.
+
 ## [0.3.22] - 2026-04-19
 
 ### Changed

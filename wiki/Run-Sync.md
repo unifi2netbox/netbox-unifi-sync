@@ -59,4 +59,6 @@ Mounted under `/plugins/unifi-sync/api/`:
 - Sync run status = success
 - Expected devices created/updated
 - VLANs/prefixes/IP ranges present
+- Client IPs present when `sync_client_ips` is enabled, tagged `unifi-client`,
+  and assigned to matching interfaces when MAC data exists in NetBox
 - No site mapping misses in logs

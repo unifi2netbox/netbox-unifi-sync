@@ -121,13 +121,15 @@ flowchart TD
 - **Security Appliance sync** — VLAN subinterfaces and gateway IPs created correctly, including Integration API controllers
 - **MAC address sync** — per-port MACs (Legacy API) or device base MAC on Port 1 (Integration API); NetBox 4.5 `MACAddress` model compatible
 - DHCP scope sync to NetBox IP Ranges
+- Client IP sync to NetBox IPAM with `unifi-client` tagging, stable MAC markers, descriptions, and interface assignment by MAC when NetBox has a matching DCIM or virtualization interface
+- NetBox Change Log support for global settings, controllers, and site mappings
 - UniFi auth via API key or legacy login (username/password + optional MFA)
 - Manual and scheduled sync jobs
 - Runtime settings stored in plugin models (`Settings`, `Controllers`, `Site mappings`)
 
 > [!NOTE]
-> Sync is strictly one-way: UniFi -> NetBox.
-> No configuration is ever pushed back to UniFi.
+> Normal sync direction is UniFi -> NetBox. DHCP-to-static writeback is the only
+> UniFi write path, and it runs only when `dhcp_writeback_enabled` is explicitly enabled.
 
 ---
 
@@ -303,6 +305,11 @@ accepted, but NetBox object permissions map naturally to
    - `git push origin vX.Y.Z`
 4. `release.yml` runs on the tag push, gates on lint/tests, and creates the GitHub Release.
 5. `publish-python-package.yml` runs on `release: published` and publishes to PyPI (can also be run manually for retry).
+
+> [!NOTE]
+> GitHub releases created by `release.yml` use `GITHUB_TOKEN`. If GitHub does not
+> emit a follow-up `release: published` workflow event, run **Publish Python Package**
+> manually from Actions with the same tag.
 
 > [!CAUTION]
 > Version mismatch between pyproject.toml, version.py, and netbox-plugin.yaml will break the release pipeline.

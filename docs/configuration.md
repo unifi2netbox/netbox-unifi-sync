@@ -91,6 +91,13 @@ Note: local Integration API keys are required for Integration API mode.
 - `cleanup_grace_days`
 - `dry_run_default`
 
+`sync_client_ips` creates/updates NetBox `IPAddress` objects for online UniFi
+clients. Synced IPs are tagged `unifi-client`, include a stable
+`unifi-client:<MAC>` marker in the description for cleanup, and are assigned to a
+matching NetBox `dcim.Interface` or `virtualization.VMInterface` when the client
+MAC address exists on that interface. Integration API field names such as
+`macAddress`, `ipAddress`, `connectedAt`, and `lastSeenAt` are supported.
+
 ### IPAM and DHCP
 
 - `dhcp_auto_discover`
@@ -136,6 +143,10 @@ will not push a static IP change back to UniFi.
 - `max_site_threads`
 - `max_device_threads`
 - `rate_limit_per_second`
+
+Stale `running` sync runs older than the runtime reconciliation threshold are
+marked failed before new status data is shown. This prevents interrupted worker
+processes from leaving the dashboard permanently stuck in a running state.
 
 ### Scheduling
 
@@ -236,6 +247,18 @@ Supported formats in those controller fields:
 - `env:VAR_NAME`
 - `file:/absolute/path/to/secret`
 - direct pasted credential value
+
+## Change Log
+
+NetBox Change Log is enabled for these plugin models:
+
+- `GlobalSyncSettings`
+- `UnifiController`
+- `SiteMapping`
+
+Use the object's **Change Log** tab/link from the plugin UI to audit settings,
+controller, and mapping changes. Sync run records and audit events remain runtime
+history and are viewed from the plugin dashboard/run detail pages.
 
 ## Advanced Compatibility Notes
 

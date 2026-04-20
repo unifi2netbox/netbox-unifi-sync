@@ -92,10 +92,16 @@ UniFi reports it:
 
 - hostname/display name
 - IP address
+- connection source fields from either Legacy API or Integration API
 - SSID
 - AP name
 - signal
+- connected timestamp
 - last seen timestamp
+
+If NetBox has an interface with the same MAC address, the IP is assigned to that
+interface. Both physical `dcim.Interface` records and virtual
+`virtualization.VMInterface` records are supported.
 
 ## Runtime AP Radio Metadata
 

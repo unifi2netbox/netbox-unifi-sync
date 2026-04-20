@@ -49,6 +49,7 @@ git push origin vX.Y.Z
 
 Note:
 - If publish does not start automatically from the release event, run `Publish Python Package` manually (`workflow_dispatch`) with the same release tag.
+- This can happen when the GitHub Release was created by `release.yml` using the repository `GITHUB_TOKEN`; the manual workflow dispatch is the supported retry path.
 
 ## Common failure
 

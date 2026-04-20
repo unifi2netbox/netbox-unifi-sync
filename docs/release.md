@@ -85,6 +85,12 @@ Configured workflows:
 5. `release.yml` runs lint/tests and creates the GitHub Release.
 6. Publishing that release triggers `publish-python-package.yml`, which publishes to PyPI.
 
+GitHub releases created by `release.yml` use the repository `GITHUB_TOKEN`.
+Depending on GitHub event propagation rules, the generated `release: published`
+event might not start `publish-python-package.yml`. If no publish run appears
+after the release is created, run **Publish Python Package** manually from
+Actions with the same tag.
+
 ## Recommended CLI Commands (alternative)
 
 ```bash

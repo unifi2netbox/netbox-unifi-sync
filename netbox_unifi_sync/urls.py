@@ -45,5 +45,8 @@ urlpatterns = (
     path("audit/", views.audit_list_view, name="audit"),
 
     # JSON API endpoints (no DRF — plain JsonResponse views)
-    path("api/", include("netbox_unifi_sync.api.urls")),
+    path(
+        "api/",
+        include(("netbox_unifi_sync.api.urls", "netbox_unifi_sync_api"), namespace="api"),
+    ),
 )

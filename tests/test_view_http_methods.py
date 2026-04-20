@@ -104,6 +104,13 @@ def test_plugin_changelog_routes_and_links_are_registered():
     assert "settings_changelog" in settings_template
 
 
+def test_api_urls_have_reverseable_namespace():
+    urls = URLS_PATH.read_text(encoding="utf-8")
+
+    assert "namespace=\"api\"" in urls
+    assert "netbox_unifi_sync_api" in urls
+
+
 def test_plugin_update_views_snapshot_before_save():
     source = VIEWS_PATH.read_text(encoding="utf-8")
 

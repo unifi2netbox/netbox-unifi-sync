@@ -36,6 +36,11 @@ def _can_queue_sync(user) -> bool:
     )
 
 
+def _can_run_cleanup(user) -> bool:
+    """Return whether a user may request the destructive cleanup phase."""
+    return user.has_perm("netbox_unifi_sync.run_cleanup")
+
+
 def _can_test_controller(user) -> bool:
     return user.has_perm("netbox_unifi_sync.test_controller") or user.has_perm(
         "netbox_unifi_sync.change_unificontroller"
@@ -85,6 +90,10 @@ def dashboard_view(request: HttpRequest) -> HttpResponse:
         if form.is_valid():
             dry_run = bool(form.cleaned_data.get("dry_run"))
             cleanup = bool(form.cleaned_data.get("cleanup"))
+            if cleanup and not _can_run_cleanup(request.user):
+                return HttpResponseForbidden(
+                    "Missing permission: netbox_unifi_sync.run_cleanup"
+                )
             try:
                 job = enqueue_sync_job(
                     user=request.user,
@@ -127,6 +136,7 @@ def dashboard_view(request: HttpRequest) -> HttpResponse:
         "form": form,
         "controller_count": UnifiController.objects.filter(enabled=True).count(),
         "can_queue_sync": _can_queue_sync(request.user),
+        "can_run_cleanup": _can_run_cleanup(request.user),
     }
     return render(request, "netbox_unifi_sync/dashboard.html", context)
 

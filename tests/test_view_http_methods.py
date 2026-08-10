@@ -82,6 +82,21 @@ def test_dashboard_sync_permission_accepts_standard_add_permission():
     assert "{% if can_queue_sync %}" in template
 
 
+def test_dashboard_cleanup_requires_dedicated_permission():
+    source = VIEWS_PATH.read_text(encoding="utf-8")
+    template = (
+        PROJECT_ROOT
+        / "netbox_unifi_sync"
+        / "templates"
+        / "netbox_unifi_sync"
+        / "dashboard.html"
+    ).read_text(encoding="utf-8")
+
+    assert 'user.has_perm("netbox_unifi_sync.run_cleanup")' in source
+    assert "if cleanup and not _can_run_cleanup(request.user)" in source
+    assert "{% if can_run_cleanup %}" in template
+
+
 def test_controller_test_permission_accepts_standard_change_permission():
     source = VIEWS_PATH.read_text(encoding="utf-8")
 

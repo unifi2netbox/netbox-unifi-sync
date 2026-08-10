@@ -306,6 +306,13 @@ class SiteMapping(_ChangeLoggingMixin, models.Model):
     class Meta:
         ordering = ("unifi_site",)
         unique_together = (("controller", "unifi_site"),)
+        constraints = (
+            models.UniqueConstraint(
+                fields=("unifi_site",),
+                condition=models.Q(controller__isnull=True),
+                name="unique_global_unifi_site_mapping",
+            ),
+        )
 
     def __str__(self) -> str:
         scope = self.controller.name if self.controller else "global"

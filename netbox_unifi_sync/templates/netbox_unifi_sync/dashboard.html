@@ -12,7 +12,12 @@
         {% if can_queue_sync %}
         <form method="post">
           {% csrf_token %}
-          {{ form.as_p }}
+          <p>{{ form.dry_run }} {{ form.dry_run.label_tag }}</p>
+          {% if can_run_cleanup %}
+          <p>{{ form.cleanup }} {{ form.cleanup.label_tag }}</p>
+          {% else %}
+          <p class="text-muted">Cleanup requires the <code>netbox_unifi_sync.run_cleanup</code> permission.</p>
+          {% endif %}
           <button type="submit" class="btn btn-primary">Queue job</button>
         </form>
         {% else %}

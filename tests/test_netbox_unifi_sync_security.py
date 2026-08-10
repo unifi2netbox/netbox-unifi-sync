@@ -11,9 +11,15 @@ def test_sanitize_error_masks_token_and_password():
 def test_record_event_redacts_nested_audit_details():
     details = {
         "request": {"Authorization": "Bearer supersecret"},
+        "credentials": {
+            "client_secret": "oauth-secret",
+            "refresh-token": "refresh-secret",
+        },
         "errors": ["password=admin123"],
     }
     stored = redact_audit_details(details)
     assert "supersecret" not in str(stored)
     assert "admin123" not in str(stored)
+    assert "oauth-secret" not in str(stored)
+    assert "refresh-secret" not in str(stored)
     assert "[REDACTED]" in str(stored)

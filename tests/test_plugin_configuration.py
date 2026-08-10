@@ -1,5 +1,3 @@
-import os
-
 from netbox_unifi_sync.configuration import (
     get_plugin_settings,
     normalize_plugin_settings,

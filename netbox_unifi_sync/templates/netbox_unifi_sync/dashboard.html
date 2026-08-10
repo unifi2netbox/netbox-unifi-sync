@@ -15,6 +15,7 @@
           <p>{{ form.dry_run }} {{ form.dry_run.label_tag }}</p>
           {% if can_run_cleanup %}
           <p>{{ form.cleanup }} {{ form.cleanup.label_tag }}</p>
+          <p class="form-text text-warning">Cleanup can delete stale NetBox objects. Review a dry run before enabling it.</p>
           {% else %}
           <p class="text-muted">Cleanup requires the <code>netbox_unifi_sync.run_cleanup</code> permission.</p>
           {% endif %}

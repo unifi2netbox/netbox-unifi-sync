@@ -1,21 +1,13 @@
 from __future__ import annotations
 
+import re
 from typing import Any
 
 from netbox_unifi_sync.services.sync.log_sanitizer import redact_text
 
-_SENSITIVE_DETAIL_KEYS = frozenset(
-    {
-        "authorization",
-        "api_key",
-        "apikey",
-        "access_token",
-        "token",
-        "password",
-        "secret",
-        "csrf_token",
-        "x_api_key",
-    }
+_SENSITIVE_DETAIL_KEY = re.compile(
+    r"(?:^|_)(?:authorization|api_?key|password|passwd|secret|token|credential)s?$",
+    re.IGNORECASE,
 )
 
 
@@ -30,7 +22,7 @@ def redact_audit_details(value: Any) -> Any:
             normalized_key = text_key.strip().lower().replace("-", "_")
             redacted[text_key] = (
                 "[REDACTED]"
-                if normalized_key in _SENSITIVE_DETAIL_KEYS
+                if _SENSITIVE_DETAIL_KEY.search(normalized_key)
                 else redact_audit_details(item)
             )
         return redacted

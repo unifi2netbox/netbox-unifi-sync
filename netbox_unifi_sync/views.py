@@ -27,19 +27,8 @@ from .services.orchestrator import (
     get_or_create_global_settings,
     test_controller_connection,
 )
+from .services.permissions import can_queue_sync, can_run_cleanup, can_test_controller
 from .services.sync_runs import mark_stale_sync_runs
-
-
-def _can_queue_sync(user) -> bool:
-    return user.has_perm("netbox_unifi_sync.run_sync") or user.has_perm(
-        "netbox_unifi_sync.add_syncrun"
-    )
-
-
-def _can_test_controller(user) -> bool:
-    return user.has_perm("netbox_unifi_sync.test_controller") or user.has_perm(
-        "netbox_unifi_sync.change_unificontroller"
-    )
 
 
 def _record_object_change(request: HttpRequest, obj, action: str) -> None:
@@ -77,7 +66,7 @@ def dashboard_view(request: HttpRequest) -> HttpResponse:
         }
     )
     if request.method == "POST":
-        if not _can_queue_sync(request.user):
+        if not can_queue_sync(request.user):
             return HttpResponseForbidden(
                 "Missing permission: netbox_unifi_sync.run_sync or netbox_unifi_sync.add_syncrun"
             )
@@ -85,6 +74,10 @@ def dashboard_view(request: HttpRequest) -> HttpResponse:
         if form.is_valid():
             dry_run = bool(form.cleaned_data.get("dry_run"))
             cleanup = bool(form.cleaned_data.get("cleanup"))
+            if cleanup and not can_run_cleanup(request.user):
+                return HttpResponseForbidden(
+                    "Missing permission: netbox_unifi_sync.run_cleanup"
+                )
             try:
                 job = enqueue_sync_job(
                     user=request.user,
@@ -126,7 +119,8 @@ def dashboard_view(request: HttpRequest) -> HttpResponse:
         "recent_runs": recent_runs,
         "form": form,
         "controller_count": UnifiController.objects.filter(enabled=True).count(),
-        "can_queue_sync": _can_queue_sync(request.user),
+        "can_queue_sync": can_queue_sync(request.user),
+        "can_run_cleanup": can_run_cleanup(request.user),
     }
     return render(request, "netbox_unifi_sync/dashboard.html", context)
 
@@ -240,7 +234,7 @@ def controller_delete_view(request: HttpRequest, pk: int) -> HttpResponse:
 @login_required
 @require_POST
 def controller_test_view(request: HttpRequest, pk: int) -> HttpResponse:
-    if not _can_test_controller(request.user):
+    if not can_test_controller(request.user):
         return HttpResponseForbidden(
             "Missing permission: netbox_unifi_sync.test_controller or netbox_unifi_sync.change_unificontroller"
         )
@@ -286,7 +280,7 @@ def controller_test_view(request: HttpRequest, pk: int) -> HttpResponse:
 @login_required
 @require_POST
 def controller_test_api_view(request: HttpRequest, pk: int) -> JsonResponse:
-    if not _can_test_controller(request.user):
+    if not can_test_controller(request.user):
         return JsonResponse(
             {
                 "status": "error",

@@ -43,11 +43,13 @@ class Unifi:
             "name": "unifi_os",
             "login_endpoint": "/api/auth/login",
             "api_prefix": "/proxy/network",
+            "remember_field": "rememberMe",
         },
         {
             "name": "legacy",
             "login_endpoint": "/api/login",
             "api_prefix": "",
+            "remember_field": "remember",
         },
     )
 
@@ -339,11 +341,12 @@ class Unifi:
             modes.sort(key=lambda mode: mode["name"] != self.auth_mode)
         return modes
 
-    def _build_login_payload(self):
-        """Build login payload with optional 2FA token."""
+    def _build_login_payload(self, mode):
+        """Build the controller-specific login payload with optional 2FA."""
         payload = {
             "username": self.username,
             "password": self.password,
+            mode["remember_field"]: True,
         }
         otp = None
         if self.mfa_secret:
@@ -578,10 +581,10 @@ class Unifi:
             logger.error("Max authentication retries reached. Aborting authentication.")
             raise Exception("Authentication failed after maximum retries.")
 
-        payload, otp = self._build_login_payload()
         auth_errors = []
 
         for mode in self._get_auth_mode_candidates():
+            payload, otp = self._build_login_payload(mode)
             login_url = f"{self.base_url}{mode['login_endpoint']}"
             logger.debug(f"Trying auth mode '{mode['name']}' via {login_url}")
 
@@ -601,11 +604,24 @@ class Unifi:
             meta = (
                 response_data.get("meta", {}) if isinstance(response_data, dict) else {}
             )
-            msg = meta.get("msg")
+            error = (
+                response_data.get("error", {})
+                if isinstance(response_data, dict)
+                else {}
+            )
+            msg = (
+                meta.get("msg")
+                or (error.get("message") if isinstance(error, dict) else None)
+                or (
+                    response_data.get("message")
+                    if isinstance(response_data, dict)
+                    else None
+                )
+            )
             rc = meta.get("rc")
             self._refresh_session_metadata(response)
 
-            if rc == "ok" or (response.ok and bool(self.session.cookies.get_dict())):
+            if response.ok and bool(self.session.cookies.get_dict()):
                 self.auth_mode = mode["name"]
                 self.api_prefix = mode["api_prefix"]
                 self._refresh_session_metadata(response)
@@ -636,7 +652,8 @@ class Unifi:
                 continue
 
             auth_errors.append(
-                f"{mode['name']}: login failed (status={response.status_code}, msg={msg})"
+                f"{mode['name']}: login failed "
+                f"(status={response.status_code}, msg={msg or rc})"
             )
 
         logger.error("UniFi authentication failed for all auth modes.")

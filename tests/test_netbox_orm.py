@@ -1,4 +1,4 @@
-from netbox_unifi_sync.services.sync.netbox_orm import _Endpoint
+from netbox_unifi_sync.services.sync.netbox_orm import _Endpoint, _OrmObject
 
 
 class IPRange:
@@ -47,3 +47,33 @@ def test_iprange_endpoint_converts_without_netaddr(monkeypatch):
 
     assert str(translated["start_address"]) == "10.88.0.50/24"
     assert translated["start_address"].ip
+
+
+def test_orm_wrapper_sets_generic_many_to_many_relationships():
+    class ManyToManyField:
+        many_to_many = True
+        many_to_one = False
+
+    class Relation:
+        def __init__(self):
+            self.values = []
+
+        def set(self, values):
+            self.values = list(values)
+
+    relation = Relation()
+    instance = type(
+        "WirelessLAN",
+        (),
+        {
+            "_meta": type(
+                "Meta", (), {"get_field": lambda self, name: ManyToManyField()}
+            )(),
+            "interfaces": relation,
+        },
+    )()
+
+    wrapped = _OrmObject(instance)
+    wrapped.interfaces = [1, 2]
+
+    assert relation.values == [1, 2]

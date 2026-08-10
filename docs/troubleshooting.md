@@ -57,6 +57,11 @@ For `login` mode:
 
 - verify `username_ref` and `password_ref`
 - verify optional `mfa_secret_ref` when required
+- UniFi OS consoles such as UDM Pro are detected automatically: the plugin tries
+  `/api/auth/login` with the UniFi OS payload first and uses the
+  `/proxy/network` API prefix after authentication
+- standalone/legacy controllers fall back to `/api/login`; no separate `udm`
+  authentication mode is required
 
 ### Plugin page errors / namespace errors
 
@@ -97,6 +102,16 @@ Check in order:
 2. `tenant_name` + `netbox_roles` are configured
 3. Site mappings are correct
 4. Run detail does not contain skipped site mapping warnings
+
+### WLAN has no VLAN or radio interfaces
+
+- confirm `sync_wlans`, `sync_vlans`, `sync_interfaces`, and
+  `sync_radio_interfaces` are enabled
+- confirm the UniFi WLAN has an explicit VLAN network and broadcasting access
+  points; WLAN-to-interface linkage requires the Integration API's
+  `broadcastingDeviceIds` data
+- WLAN relationships are synchronized after device radio interfaces, so the
+  first full sync can populate both the WLAN and its interface assignments
 
 ### Prefix exists but DHCP range missing
 

@@ -163,6 +163,20 @@ class _OrmObject:
                 existing.update(value)
                 instance.custom_field_data = existing
             return
+        try:
+            model_field = instance._meta.get_field(name)
+        except Exception:
+            model_field = None
+        if model_field is not None and getattr(model_field, "many_to_many", False):
+            getattr(instance, name).set(value or [])
+            return
+        if (
+            model_field is not None
+            and getattr(model_field, "many_to_one", False)
+            and isinstance(value, int)
+        ):
+            setattr(instance, f"{name}_id", value)
+            return
         if name in _OrmObject._CONTENT_TYPE_FIELDS and isinstance(value, str) and "." in value:
             # Convert "app_label.model_name" string → ContentType instance
             try:
@@ -354,6 +368,18 @@ class _Endpoint:
         except Exception:
             return set()
 
+    @staticmethod
+    def _m2m_fields(model) -> set[str]:
+        try:
+            return {
+                field.name
+                for field in model._meta.get_fields()
+                if getattr(field, "many_to_many", False)
+                and not getattr(field, "auto_created", False)
+            }
+        except Exception:
+            return set()
+
     def create(self, payload: dict | None = None, **kwargs) -> "_OrmObject | None":
         """
         Create a new instance from a flat payload dict.
@@ -386,12 +412,12 @@ class _Endpoint:
         cable_terminations: dict[str, list] = {}
 
         fk_names = self._fk_fields(self._model)
+        m2m_names = self._m2m_fields(self._model)
 
         for key, value in payload.items():
             value = _normalize_iprange_address_value(self._model, key, value)
-            if key == "content_types":
-                # ManyToMany: list of "app_label.model" strings
-                m2m["content_types"] = value
+            if key in m2m_names:
+                m2m[key] = value
             elif key == "custom_fields" and isinstance(value, dict):
                 custom_fields = value
             elif key in _OrmObject._CONTENT_TYPE_FIELDS and isinstance(value, str) and "." in value:

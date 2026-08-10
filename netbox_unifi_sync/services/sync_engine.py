@@ -1090,7 +1090,113 @@ def sync_site_dhcp_ip_ranges(nb, nb_site, tenant, dhcp_pools):
             logger.warning(f"Could not create DHCP IP range {start_address}-{end_address}: {e}")
 
 
-def sync_site_wlans(nb, site_obj, nb_site, tenant):
+def _wlan_vlan_id(wlan):
+    """Return a normalized VLAN ID from legacy or Integration API WLAN data."""
+    candidates = [wlan.get("vlanId"), wlan.get("vlan_id"), wlan.get("vlan")]
+    network = wlan.get("network")
+    if isinstance(network, dict):
+        candidates.extend(
+            network.get(key) for key in ("vlanId", "vlan_id", "vlan", "vid")
+        )
+    elif isinstance(network, (int, str)):
+        candidates.append(network)
+
+    for candidate in candidates:
+        try:
+            vlan_id = int(candidate)
+        except (TypeError, ValueError):
+            continue
+        if 1 <= vlan_id <= 4094:
+            return vlan_id
+    return None
+
+
+def _wlan_broadcast_device_ids(wlan):
+    values = None
+    for key in (
+        "broadcastingDeviceIds",
+        "broadcasting_device_ids",
+        "deviceIds",
+        "accessPointIds",
+        "apIds",
+        "broadcastingDevices",
+    ):
+        if wlan.get(key) is not None:
+            values = wlan.get(key)
+            break
+    if values is None:
+        return None
+    if not isinstance(values, list):
+        return set()
+
+    identifiers = set()
+    for value in values:
+        if isinstance(value, dict):
+            value = value.get("id") or value.get("deviceId") or value.get("device_id")
+        if value is not None and str(value).strip():
+            identifiers.add(str(value))
+    return identifiers
+
+
+def _site_vlan(nb, nb_site, vlan_id):
+    if vlan_id is None:
+        return None
+    vlan_group = nb.ipam.vlan_groups.get(slug=slugify(nb_site.name))
+    if vlan_group:
+        vlan = nb.ipam.vlans.get(vid=vlan_id, group_id=vlan_group.id)
+        if vlan:
+            return vlan
+    return nb.ipam.vlans.get(vid=vlan_id, site_id=nb_site.id)
+
+
+def _wireless_interface_ids(nb, wlan, devices, nb_site, tenant):
+    broadcast_ids = _wlan_broadcast_device_ids(wlan)
+    if broadcast_ids is None:
+        return None
+    if not broadcast_ids:
+        return []
+    if not devices:
+        return None
+
+    unifi_devices = {
+        str(device.get("id")): device
+        for device in devices
+        if device.get("id") is not None
+    }
+    interface_ids = set()
+    for broadcast_id in broadcast_ids:
+        device = unifi_devices.get(broadcast_id)
+        if not device:
+            continue
+        serial = get_device_serial(device)
+        if not serial:
+            continue
+        nb_device = nb.dcim.devices.get(
+            serial=serial,
+            site_id=nb_site.id,
+            tenant_id=tenant.id,
+        )
+        if not nb_device:
+            continue
+        for interface in nb.dcim.interfaces.filter(device_id=nb_device.id):
+            if str(getattr(interface, "type", "") or "").startswith("ieee802.11"):
+                interface_ids.add(int(interface.id))
+    return sorted(interface_ids)
+
+
+def _related_ids(value):
+    try:
+        values = value.all()
+    except AttributeError:
+        values = value or []
+    return {
+        int(getattr(item, "id", item))
+        for item in values
+        if getattr(item, "id", item) is not None
+    }
+
+
+def sync_site_wlans(nb, site_obj, nb_site, tenant, devices=None):
     """Sync WiFi SSIDs from UniFi to NetBox wireless LANs."""
     try:
         wlans = site_obj.wlan_conf.all()
@@ -1123,6 +1229,11 @@ def sync_site_wlans(nb, site_obj, nb_site, tenant):
         sec_config = wlan.get("securityConfiguration") or {}
         if isinstance(sec_config, dict):
             security = security or sec_config.get("type") or ""
+
+        vlan = _site_vlan(nb, nb_site, _wlan_vlan_id(wlan))
+        interface_ids = _wireless_interface_ids(
+            nb, wlan, devices, nb_site, tenant
+        )
 
         # Map security to NetBox auth_type (NetBox 4.x: open, wep, wpa-personal, wpa-enterprise)
         sec_lower = str(security).lower()
@@ -1159,6 +1270,10 @@ def sync_site_wlans(nb, site_obj, nb_site, tenant):
                 }
                 if wlan_group:
                     wlan_payload["group"] = wlan_group.id
+                if vlan:
+                    wlan_payload["vlan"] = vlan.id
+                if interface_ids:
+                    wlan_payload["interfaces"] = interface_ids
                 new_wlan = nb.wireless.wireless_lans.create(wlan_payload)
                 if new_wlan:
                     logger.info(f"Created wireless LAN '{ssid}' at site {nb_site.name}")
@@ -1176,6 +1291,21 @@ def sync_site_wlans(nb, site_obj, nb_site, tenant):
             current_auth = existing.auth_type.value if hasattr(existing.auth_type, 'value') else str(existing.auth_type or "")
             if current_auth != auth_type:
                 existing.auth_type = auth_type
+                changed = True
+            current_vlan = getattr(existing, "vlan", None)
+            current_vlan_id = getattr(
+                current_vlan,
+                "id",
+                current_vlan if isinstance(current_vlan, int) else None,
+            )
+            desired_vlan_id = getattr(vlan, "id", None)
+            if current_vlan_id != desired_vlan_id:
+                existing.vlan = desired_vlan_id
+                changed = True
+            if interface_ids is not None and _related_ids(
+                getattr(existing, "interfaces", [])
+            ) != set(interface_ids):
+                existing.interfaces = interface_ids
                 changed = True
             if changed:
                 try:
@@ -3082,13 +3212,6 @@ def process_site(unifi, nb, site_obj, site_display_name, nb_site, nb_ubiquity, t
                 except Exception as e:
                     logger.warning(f"Failed to sync prefixes for site {site_display_name}: {e}")
 
-            # Sync WiFi SSIDs
-            if os.getenv("SYNC_WLANS", "true").strip().lower() in ("true", "1", "yes"):
-                try:
-                    sync_site_wlans(nb, site_obj, nb_site, tenant)
-                except Exception as e:
-                    logger.warning(f"Failed to sync WLANs for site {site_display_name}: {e}")
-
             # Sync client IPs to NetBox IPAM
             if os.getenv("SYNC_CLIENT_IPS", "false").strip().lower() in ("true", "1", "yes"):
                 try:
@@ -3130,6 +3253,11 @@ def process_site(unifi, nb, site_obj, site_display_name, nb_site, nb_ubiquity, t
                     logger.warning(f"Failed to extract DHCP ranges for site {site_display_name}: {e}")
 
             if not _sync_option("SYNC_DEVICES", default=True):
+                if _sync_option("SYNC_WLANS", default=True):
+                    try:
+                        sync_site_wlans(nb, site_obj, nb_site, tenant)
+                    except Exception as e:
+                        logger.warning(f"Failed to sync WLANs for site {site_display_name}: {e}")
                 logger.info(f"Device sync disabled for site {site_display_name}; skipping devices, interfaces, IPs, and cables")
                 return
 
@@ -3162,6 +3290,16 @@ def process_site(unifi, nb, site_obj, site_display_name, nb_site, nb_ubiquity, t
                         future.result()
                     except Exception as e:
                         logger.error(f"Error processing a device at site {site_display_name}: {e}")
+
+            # WLAN interface relationships require the AP radio interfaces to
+            # exist, so link WLANs only after all site devices are processed.
+            if _sync_option("SYNC_WLANS", default=True):
+                try:
+                    sync_site_wlans(
+                        nb, site_obj, nb_site, tenant, devices=devices
+                    )
+                except Exception as e:
+                    logger.warning(f"Failed to sync WLANs for site {site_display_name}: {e}")
 
             # Sync uplink cables after all devices are processed
             if os.getenv("SYNC_CABLES", "true").strip().lower() in ("true", "1", "yes"):

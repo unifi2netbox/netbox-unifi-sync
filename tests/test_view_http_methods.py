@@ -29,6 +29,7 @@ SETTINGS_TEMPLATE_PATH = (
 )
 URLS_PATH = PROJECT_ROOT / "netbox_unifi_sync" / "urls.py"
 SYNC_RUNS_PATH = PROJECT_ROOT / "netbox_unifi_sync" / "services" / "sync_runs.py"
+JOBS_PATH = PROJECT_ROOT / "netbox_unifi_sync" / "jobs.py"
 
 
 def _decorator_name(node: ast.AST) -> str:
@@ -77,17 +78,35 @@ def test_dashboard_sync_permission_accepts_standard_add_permission():
         / "dashboard.html"
     ).read_text(encoding="utf-8")
 
-    assert "netbox_unifi_sync.run_sync" in source
-    assert "netbox_unifi_sync.add_syncrun" in source
+    assert "can_queue_sync(request.user)" in source
     assert "{% if can_queue_sync %}" in template
+
+
+def test_dashboard_cleanup_requires_dedicated_permission():
+    source = VIEWS_PATH.read_text(encoding="utf-8")
+    template = (
+        PROJECT_ROOT
+        / "netbox_unifi_sync"
+        / "templates"
+        / "netbox_unifi_sync"
+        / "dashboard.html"
+    ).read_text(encoding="utf-8")
+
+    assert "if cleanup and not can_run_cleanup(request.user)" in source
+    assert "{% if can_run_cleanup %}" in template
+
+
+def test_job_enqueue_boundary_also_enforces_cleanup_permission():
+    source = JOBS_PATH.read_text(encoding="utf-8")
+
+    assert "if cleanup_requested and not can_run_cleanup(user)" in source
+    assert "raise PermissionDenied" in source
 
 
 def test_controller_test_permission_accepts_standard_change_permission():
     source = VIEWS_PATH.read_text(encoding="utf-8")
 
-    assert "def _can_test_controller" in source
-    assert "netbox_unifi_sync.test_controller" in source
-    assert "netbox_unifi_sync.change_unificontroller" in source
+    assert "can_test_controller(request.user)" in source
 
 
 def test_plugin_changelog_routes_and_links_are_registered():

@@ -15,6 +15,10 @@ class _FakeResponse:
         self.headers = headers or {}
         self.request = type("Req", (), {"path_url": "/sites"})()
 
+    @property
+    def ok(self):
+        return self.status_code < 400
+
     def json(self):
         return self._payload
 
@@ -136,3 +140,83 @@ def test_falls_back_to_legacy_when_integration_probe_fails(monkeypatch):
 
     assert unifi.api_style == "legacy"
     assert auth_mock.call_count == 1
+
+
+def _build_login_client(monkeypatch):
+    monkeypatch.delenv("UNIFI_PERSIST_SESSION", raising=False)
+    with patch.object(Unifi, "load_session_from_file", return_value=None), patch.object(
+        Unifi, "authenticate", return_value=None
+    ), patch.object(Unifi, "get_sites", return_value={}):
+        return Unifi(
+            "https://controller.example.com",
+            username="admin",
+            password="secret",
+        )
+
+
+def test_unifi_os_login_uses_modern_endpoint_and_payload(monkeypatch):
+    unifi = _build_login_client(monkeypatch)
+
+    def login(url, **kwargs):
+        assert url == "https://controller.example.com/api/auth/login"
+        assert kwargs["json"] == {
+            "username": "admin",
+            "password": "secret",
+            "rememberMe": True,
+        }
+        unifi.session.cookies.set("TOKEN", "session-cookie")
+        return _FakeResponse(payload={"id": "user-1"})
+
+    with patch.object(unifi.session, "post", side_effect=login) as post_mock:
+        unifi.authenticate()
+
+    assert post_mock.call_count == 1
+    assert unifi.auth_mode == "unifi_os"
+    assert unifi.api_prefix == "/proxy/network"
+    assert unifi._build_api_url("/api/s/default/stat/device") == (
+        "https://controller.example.com/proxy/network/api/s/default/stat/device"
+    )
+
+
+def test_authentication_falls_back_to_legacy_endpoint(monkeypatch):
+    unifi = _build_login_client(monkeypatch)
+    responses = iter([
+        _FakeResponse(status_code=403, payload={"error": {"message": "Forbidden"}}),
+        _FakeResponse(payload={"meta": {"rc": "ok"}}),
+    ])
+
+    def login(*args, **kwargs):
+        response = next(responses)
+        if response.status_code == 200:
+            unifi.session.cookies.set("unifises", "session-cookie")
+        return response
+
+    with patch.object(
+        unifi.session, "post", side_effect=login
+    ) as post_mock:
+        unifi.authenticate()
+
+    assert [call.args[0] for call in post_mock.call_args_list] == [
+        "https://controller.example.com/api/auth/login",
+        "https://controller.example.com/api/login",
+    ]
+    assert post_mock.call_args_list[1].kwargs["json"]["remember"] is True
+    assert "rememberMe" not in post_mock.call_args_list[1].kwargs["json"]
+    assert unifi.auth_mode == "legacy"
+    assert unifi.api_prefix == ""
+
+
+def test_success_response_without_session_cookie_is_not_authenticated(monkeypatch):
+    unifi = _build_login_client(monkeypatch)
+    responses = [
+        _FakeResponse(payload={"id": "user-1"}),
+        _FakeResponse(status_code=404, payload={}),
+    ]
+
+    with patch.object(unifi.session, "post", side_effect=responses):
+        try:
+            unifi.authenticate()
+        except Exception as exc:
+            assert "unifi_os: login failed" in str(exc)
+        else:
+            raise AssertionError("Authentication must require a session cookie")

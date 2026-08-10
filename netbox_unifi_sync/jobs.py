@@ -6,6 +6,7 @@ from typing import Any
 
 from core.exceptions import JobFailed
 from django.contrib.auth import get_user_model
+from django.core.exceptions import PermissionDenied
 from netbox.context import current_request
 from netbox.jobs import JobRunner, system_job
 
@@ -18,6 +19,7 @@ from .services.orchestrator import (
     run_sync,
     scheduler_due,
 )
+from .services.permissions import can_run_cleanup
 
 logger = logging.getLogger("netbox.plugins.netbox_unifi_sync.jobs")
 
@@ -122,6 +124,10 @@ class UnifiSyncJob(JobRunner):
 
     @classmethod
     def enqueue_sync(cls, *, user=None, dry_run: bool = False, cleanup_requested: bool = False, trigger: str = "manual-ui"):
+        if cleanup_requested and not can_run_cleanup(user):
+            raise PermissionDenied(
+                "Missing permission: netbox_unifi_sync.run_cleanup"
+            )
         kwargs = {
             "dry_run": bool(dry_run),
             "cleanup_requested": bool(cleanup_requested),

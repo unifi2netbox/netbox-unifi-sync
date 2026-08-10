@@ -4,6 +4,16 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+### Fixed
+
+- **Wireless LAN relationships** — WLAN sync now assigns the matching
+  site-scoped VLAN and links each SSID to the radio interfaces of the UniFi
+  access points listed by the Integration API as broadcasting that WLAN.
+- **UniFi OS login on UDM consoles** — session login now sends the modern
+  `rememberMe` payload to `/api/auth/login`, requires a returned session cookie,
+  and uses `/proxy/network` for subsequent controller API requests while
+  preserving `/api/login` fallback for standalone legacy controllers.
+
 ## [0.3.23] - 2026-04-20
 
 ### Added

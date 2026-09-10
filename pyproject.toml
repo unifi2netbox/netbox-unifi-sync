@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "netbox-unifi-sync"
-version = "0.3.23"
+version = "0.3.25"
 description = "Production-ready NetBox plugin for UniFi synchronization"
 readme = { file = "README.md", content-type = "text/markdown" }
 requires-python = ">=3.11"
@@ -62,3 +62,10 @@ exclude = [
   "deploy*",
   "netbox_unifi_sync.templates*",
 ]
+
+[tool.ruff.lint]
+# ruff 0.16.0 (2026-07-23) promoted its preview rule set to the stable default
+# ("413, up from 59"), which turned `ruff check` red with no code change. CI
+# installs ruff unpinned, so this pins the rule set the code was written and
+# reviewed against: ruff's pre-0.16 DEFAULT_SELECTORS.
+select = ["E4", "E7", "E9", "F"]

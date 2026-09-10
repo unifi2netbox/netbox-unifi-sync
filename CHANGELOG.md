@@ -4,6 +4,20 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+## [0.3.25] - 2026-09-05
+
+Supersedes v0.3.24, which was tagged on 2026-08-10 but never reached PyPI
+because its version metadata still read 0.3.23. The entries below are the
+contents of that tag.
+
+### Added
+
+- **Unique global UniFi site mappings** — a partial unique constraint now
+  allows only one global (controller-less) mapping per UniFi site. Migration
+  `0009_unique_global_site_mapping` refuses to apply while duplicate global
+  mappings exist, so ambiguous rows are resolved deliberately instead of being
+  silently dropped.
+
 ### Fixed
 
 - **Wireless LAN relationships** — WLAN sync now assigns the matching
@@ -13,6 +27,17 @@ All notable changes to this project are documented in this file.
   `rememberMe` payload to `/api/auth/login`, requires a returned session cookie,
   and uses `/proxy/network` for subsequent controller API requests while
   preserving `/api/login` fallback for standalone legacy controllers.
+
+### Security
+
+- **Cleanup authorization hardened** — `UnifiSyncJob.enqueue_sync()` now
+  refuses a cleanup request unless the user holds
+  `netbox_unifi_sync.run_cleanup`, closing the gap where the destructive
+  cleanup path was gated only by the permission to queue a sync.
+- **Audit details redacted** — structured audit event details are recursively
+  redacted before being persisted, masking values held under keys such as
+  `authorization`, `api_key`, `password`, `secret`, `token` and
+  `credentials`.
 
 ## [0.3.23] - 2026-04-20
 

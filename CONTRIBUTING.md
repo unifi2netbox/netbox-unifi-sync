@@ -1,5 +1,7 @@
 # Contributing to netbox-unifi-sync
 
+AI assistants should also follow the repository-specific [AGENTS.md](AGENTS.md).
+
 Thanks for helping improve the project.
 
 This repository is maintained in spare time, but the goal is to make it easy for new contributors to get started without requiring manual setup from the maintainer for each contribution.

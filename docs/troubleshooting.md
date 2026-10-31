@@ -162,6 +162,20 @@ Include:
 
 Do not include credentials, tokens, cookies, or private secrets.
 
+### Dependabot alerts remain after a dependency update
+
+Check both the version requirement on `main` and the dependency graph's recorded
+version. The native dependency job previously submitted `pkg:pypi/urllib3`
+without a version, even after the compatible requirement excluded older
+releases. The scanned `requirements.txt` now pins `urllib3==2.8.0`; the published
+package's `pyproject.toml` dependency still permits compatible patched 2.8.x
+releases. Version 2.8.0 fixes GHSA-vxq7-64xx-v4gw and GHSA-gh4c-6fx4-qh6g.
+
+After merging a manifest change, inspect the dependency update job/snapshot and
+the alert status. A clean `pip-audit` verifies the dependencies resolved for that
+scan; it does not prove that GitHub has closed an alert. Do not dismiss an alert
+as a substitute for confirming the recorded dependency and fix.
+
 ## v0.3.26 Sync and Upgrade Checks
 
 ### Prefixes appear with prefix sync disabled

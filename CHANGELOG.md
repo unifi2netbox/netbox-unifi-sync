@@ -4,6 +4,14 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+### Security
+
+- Pin urllib3 to 2.8.0 in `requirements.txt` so the scanned deployment manifest
+  identifies the version containing the fixes for GHSA-vxq7-64xx-v4gw
+  (unbounded chunk-size line buffering) and GHSA-gh4c-6fx4-qh6g (Deflate
+  streaming loop). The package dependency in `pyproject.toml` retains its
+  compatible patched 2.8.x range.
+
 ### Documentation
 
 - Update README, installation/upgrade guides, configuration, cleanup,

@@ -2,4 +2,5 @@ pyotp~=2.9.0
 requests>=2.33.0,<3.0.0
 PyYAML~=6.0.2
 python-slugify~=8.0.4
-urllib3~=2.8.0
+# Keep the scanned deployment manifest explicit about the patched version.
+urllib3==2.8.0

@@ -4,6 +4,14 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+### Data
+
+- Refresh both Ubiquiti device-spec bundles from Device Type Library commit
+  `f3a04d6520b678b920438ad441cfa9b03e5bdaf2` (198 definitions). Add 17 upstream
+  part numbers while preserving existing aliases, PoE enrichment and legacy
+  entries; keep all current upstream metadata and normalized component fields.
+  Both copies now contain 201 part-number entries and 499 model/alias entries.
+
 ### Documentation
 
 - Update README, installation/upgrade guides, configuration, cleanup,

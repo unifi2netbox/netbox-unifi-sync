@@ -23,7 +23,7 @@ git push origin vX.Y.Z
 ```
 
 4. `release.yml` runs on a user-pushed tag, gates on lint/tests, and creates the GitHub Release. The manual tag workflow calls it directly.
-5. The release workflow calls `publish-python-package.yml` directly to publish to PyPI (it can also be run manually for retry).
+5. A standalone `publish-python-package.yml` run publishes to PyPI after verifying the completed release workflow. The manual tag workflow dispatches publication explicitly; manual publication is also available for retry.
 
 ## One-Time Setup
 
@@ -60,13 +60,16 @@ Configured workflows:
   - creates and pushes an annotated tag (`vX.Y.Z`)
   - can validate version consistency in `pyproject.toml`, `version.py`, and `netbox-plugin.yaml`
   - calls the reusable `release.yml` workflow after creating the tag
+  - dispatches the standalone publish workflow after the release succeeds
 - `release.yml`:
   - runs on push of tags matching `v*`, or as a reusable workflow
   - runs lint + tests first
   - creates GitHub Release
-  - calls the reusable publish workflow after release creation
+  - completion starts standalone publication through `workflow_run`
 - `publish-python-package.yml`:
-  - runs automatically when called by the release workflow
+  - runs as a top-level workflow on release completion (`workflow_run`)
+  - verifies that the release job passed and the tag matches the validated commit
+  - requires a published GitHub Release before uploading
   - can also be run manually (`workflow_dispatch`) for retry
   - uses environment `pypi`
   - uses GitHub OIDC (`id-token: write`)
@@ -84,12 +87,23 @@ Configured workflows:
    - `verify_version_files`: `true` (recommended)
 4. The workflow creates/pushes `vX.Y.Z`, then calls `release.yml`.
 5. `release.yml` runs lint/tests and creates the GitHub Release.
-6. The release workflow calls `publish-python-package.yml`, which publishes to PyPI.
+6. The manual tag workflow dispatches `publish-python-package.yml`, which publishes to PyPI.
 
-The workflows call each other explicitly because events created with the
-repository `GITHUB_TOKEN` do not start other workflows. This applies both to a
-manually generated tag and to the GitHub Release. Manual publication remains
-available to retry a failed PyPI upload with the same tag.
+The manual tag workflow calls the release checks explicitly because a tag pushed
+with `GITHUB_TOKEN` does not start another workflow. Publication runs as its own
+workflow so both the OIDC identity and artifact attestation name
+`publish-python-package.yml`, matching the configured PyPI Trusted Publisher.
+Calling it as a reusable workflow can give the attestation the caller's
+`release.yml` identity instead, causing PyPI to reject the upload.
+
+A tag-push release starts publication through `workflow_run`, including recovery
+of an older run whose release job passed but whose nested publisher failed.
+The resolver checks the successful release job, repository, triggering event,
+published release and tag commit before permitting deployment. A failed test or
+release build does not authorize publication. The manual tag workflow uses an
+explicit `workflow_dispatch`, which is permitted with `GITHUB_TOKEN`.
+
+Manual publication remains available to retry a failed upload with the same tag.
 
 ## Recommended CLI Commands (alternative)
 

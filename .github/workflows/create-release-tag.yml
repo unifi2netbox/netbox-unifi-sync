@@ -123,7 +123,7 @@ jobs:
           {
             echo "Created and pushed tag: \`$tag\`"
             echo ""
-            echo "The next job calls \`release.yml\` (lint, tests, GitHub Release, PyPI)."
+            echo "The next job calls \`release.yml\` (lint, tests, GitHub Release; then a standalone PyPI workflow)."
           } >> "$GITHUB_STEP_SUMMARY"
 
   release:
@@ -135,3 +135,16 @@ jobs:
     uses: ./.github/workflows/release.yml
     with:
       tag: ${{ needs.create_tag.outputs.tag }}
+
+  publish:
+    needs: [create_tag, release]
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+      contents: read
+    steps:
+      - name: Start standalone PyPI publication
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ needs.create_tag.outputs.tag }}
+        run: gh workflow run publish-python-package.yml --repo "$GITHUB_REPOSITORY" --ref main -f "tag=$RELEASE_TAG"

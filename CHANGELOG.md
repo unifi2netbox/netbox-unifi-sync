@@ -4,7 +4,22 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+## [0.3.26] - 2026-10-31
+
 ### Fixed
+
+- Fail dry-run preflight when NetBox models or its database are unavailable.
+- Keep controller-scoped site mappings separate even when credentials match;
+  disable stale cleanup when separate executions would make it unsafe.
+- Preserve canonical role mappings when legacy aliases appear first.
+- Record the time of failed controller connectivity tests.
+- Keep overlapping in-process sync runs from replacing each other's runtime
+  settings and credentials.
+- Chain tag creation, release checks, GitHub Release, and PyPI publication
+  explicitly instead of relying on events emitted by `GITHUB_TOKEN`.
+- Include upstream fixes for NetBox change logging, legacy client listing,
+  cached session reauthentication, switch role detection, device type mappings,
+  and optional live readings.
 
 - Honor disabled prefix sync for inferred device subnets, retain primary IP
   assignment with a host mask when no parent exists, and serialize prefix
@@ -15,6 +30,16 @@ All notable changes to this project are documented in this file.
   saves so newly created power ports remain visible (#16).
 - Resolve community device types by part number, slug, and library model before
   creating a type; normalize spaces and hyphens in part numbers (#15).
+
+### Security
+
+- Require urllib3 2.8.0 or later in the 2.8 series to address known proxy TLS,
+  redirect-header, and response decompression vulnerabilities; audit runtime
+  dependencies in CI and release checks.
+- Enforce sync authorization at the job enqueue boundary as well as in the UI.
+- Redact MFA secrets and legacy NetBox tokens from configuration snapshots.
+- Pass manual release inputs through environment variables and validate tags
+  before use in shell commands.
 
 ## [0.3.25] - 2026-09-05
 

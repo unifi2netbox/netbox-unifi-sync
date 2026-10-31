@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import contextvars
+import hashlib
 import json
 from slugify import slugify
 import os
@@ -30,17 +31,6 @@ from .sync.runtime_config import (
 )
 from .sync.runtime_config import _unifi_verify_ssl, _netbox_verify_ssl, _sync_interval_seconds  # noqa: F401
 
-
-def _submit_with_context(executor, fn, *args, **kwargs):
-    """Submit work that keeps the caller's context variables.
-
-    NetBox writes change log records only when ``netbox.context.current_request``
-    is set. Worker threads start with an empty context, so objects saved in
-    them were never change-logged. Each task gets its own copy of the
-    submitting thread's context (a Context cannot be entered by two threads).
-    """
-    ctx = contextvars.copy_context()
-    return executor.submit(ctx.run, fn, *args, **kwargs)
 from .sync.log_sanitizer import SensitiveDataFormatter
 from .sync.vrf import get_or_create_vrf, get_vrf_for_site  # noqa: F401
 from .unifi.unifi import Unifi
@@ -73,6 +63,19 @@ class _PynetboxCompat:
             RequestError = RuntimeError
 
 pynetbox = _PynetboxCompat()
+
+
+def _submit_with_context(executor, fn, *args, **kwargs):
+    """Submit work that keeps the caller's context variables.
+
+    NetBox writes change log records only when ``netbox.context.current_request``
+    is set. Worker threads start with an empty context, so objects saved in
+    them were never change-logged. Each task gets its own copy of the
+    submitting thread's context (a Context cannot be entered by two threads).
+    """
+    ctx = contextvars.copy_context()
+    return executor.submit(ctx.run, fn, *args, **kwargs)
+
 
 # Threading limits (configurable via env vars)
 # Use guarded parsing to avoid startup crashes on invalid env values.
@@ -2864,6 +2867,8 @@ def _ensure_device_type_specs_inner(nb, nb_device_type, model, specs):
 
 def _device_serial_name(name, serial):
     suffix = f"_{serial}"
+    if len(suffix) >= 64:
+        suffix = "_" + hashlib.sha256(str(serial).encode()).hexdigest()[:16]
     return f"{name[:64 - len(suffix)]}{suffix}"
 
 

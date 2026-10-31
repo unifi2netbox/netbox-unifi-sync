@@ -4,12 +4,17 @@ on:
   push:
     tags:
       - "v*"
+  workflow_call:
+    inputs:
+      tag:
+        required: true
+        type: string
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
 
 concurrency:
-  group: release-${{ github.ref }}
+  group: release-${{ inputs.tag || github.ref_name }}
   cancel-in-progress: false
 
 jobs:
@@ -17,6 +22,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.tag || github.ref }}
 
       - uses: actions/setup-python@v6
         with:
@@ -24,13 +31,16 @@ jobs:
           cache: pip
 
       - name: Install lint tools
-        run: pip install ruff bandit
+        run: pip install ruff bandit pip-audit
 
       - name: Lint (ruff)
         run: ruff check netbox_unifi_sync/
 
       - name: Security scan (bandit)
         run: bandit -r netbox_unifi_sync/ -ll
+
+      - name: Audit runtime dependencies
+        run: pip-audit -r requirements.txt
 
   test:
     runs-on: ubuntu-latest
@@ -41,6 +51,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.tag || github.ref }}
 
       - uses: actions/setup-python@v6
         with:
@@ -57,32 +69,100 @@ jobs:
       - name: Run tests
         run: pytest -q
 
-  release:
+  build:
     needs: [lint, test]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.tag || github.ref }}
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Verify tag and package versions
+        env:
+          RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
+        run: |
+          python - <<'PY'
+          import os
+          import re
+          import runpy
+          import tomllib
+          from pathlib import Path
+
+          tag = os.environ["RELEASE_TAG"]
+          version = tomllib.loads(Path("pyproject.toml").read_text())["project"]["version"]
+          module_version = runpy.run_path("netbox_unifi_sync/version.py")["__version__"]
+          plugin_version = re.search(r"release:\s*(\S+)", Path("netbox-plugin.yaml").read_text()).group(1)
+          if not (tag == f"v{version}" and version == module_version == plugin_version):
+              raise SystemExit("Release tag and all three package version files must match")
+          PY
+
+      - name: Build and validate package
+        run: |
+          pip install build twine
+          python -m build
+          twine check dist/*
+
+  release:
+    needs: build
     runs-on: ubuntu-latest
     permissions:
       contents: write
+    outputs:
+      tag: ${{ steps.release.outputs.tag }}
 
     steps:
       - uses: actions/checkout@v6
         with:
           fetch-depth: 0
+          ref: ${{ inputs.tag || github.ref }}
 
       - name: Create GitHub release
+        id: release
         env:
           GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
         shell: bash
         run: |
           set -euo pipefail
 
-          tag="${GITHUB_REF_NAME}"
+          tag="$RELEASE_TAG"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
           if gh release view "$tag" >/dev/null 2>&1; then
             echo "Release for $tag already exists. Skipping create."
             exit 0
           fi
 
-          cmd=(gh release create "$tag" --generate-notes)
+          python - <<'PY'
+          import os
+          import re
+          from pathlib import Path
+
+          version = os.environ["RELEASE_TAG"].removeprefix("v")
+          section = re.search(
+              r"(?ms)^## \[" + re.escape(version) + r"\][^\n]*\n(.*?)(?=^## |\Z)",
+              Path("CHANGELOG.md").read_text(),
+          )
+          if section is None:
+              raise SystemExit("Release version is missing from CHANGELOG.md")
+          (Path(os.environ["RUNNER_TEMP"]) / "release-notes.md").write_text(section.group(1).strip() + "\n")
+          PY
+
+          cmd=(gh release create "$tag" --verify-tag --generate-notes --notes-file "$RUNNER_TEMP/release-notes.md")
           if [[ "$tag" == *-* ]]; then
             cmd+=(--prerelease)
           fi
           "${cmd[@]}"
+
+  publish:
+    needs: release
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+    uses: ./.github/workflows/publish-python-package.yml
+    with:
+      tag: ${{ needs.release.outputs.tag }}

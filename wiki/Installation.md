@@ -1,50 +1,37 @@
 # Installation
 
-## Option A: Install from PyPI
+Current release: [v0.3.26](https://pypi.org/project/netbox-unifi-sync/0.3.26/).
+Install into the Python environment used by NetBox and every worker. The plugin
+supports NetBox 4.2–4.x and Python 3.11+; respect NetBox's own Python requirements.
 
 ```bash
-pip install netbox-unifi-sync
+python -m pip install netbox-unifi-sync==0.3.26
+python -m pip check
 ```
 
-PyPI: <https://pypi.org/project/netbox-unifi-sync/>
-
-Enable plugin in NetBox `configuration.py`:
+Enable the plugin in NetBox configuration, retaining any other enabled plugins:
 
 ```python
 PLUGINS = ["netbox_unifi_sync"]
-
-PLUGINS_CONFIG = {
-    "netbox_unifi_sync": {}
-}
+PLUGINS_CONFIG = {"netbox_unifi_sync": {}}
 ```
 
-Credential policy:
-- Configure UniFi credentials only in `Plugins -> UniFi Sync -> Controllers`.
-- Do not store UniFi credentials in `PLUGINS_CONFIG`.
-
-Run migrations:
+Apply migrations and restart web/worker services:
 
 ```bash
 python manage.py migrate
+python manage.py check
 ```
 
-## Option B: netbox-docker (local validation)
+Configure credentials in **Controllers**, Settings and site mappings in the UI.
+Run a controller test, then preflight and a first full sync without cleanup.
+See [Configuration](Configuration) and [Run Sync](Run-Sync).
 
-```bash
-git clone https://github.com/unifi2netbox/netbox-unifi-sync.git
-cd netbox-unifi-sync
-git clone -b release https://github.com/netbox-community/netbox-docker.git .netbox-docker
-cp deploy/netbox-docker/configuration/plugins.py .netbox-docker/configuration/plugins.py
-echo "netbox-unifi-sync" >> .netbox-docker/local_requirements.txt
-```
+For netbox-docker, use a custom image containing the pinned package for both
+services or the separate editable development mount. The stock image does not
+consume a new `local_requirements.txt` without a custom build. Follow the
+[complete Docker guide](https://github.com/unifi2netbox/netbox-unifi-sync/blob/main/deploy/netbox-docker/README.md).
 
-Build and start:
-
-```bash
-cd .netbox-docker
-docker compose build netbox netbox-worker
-docker compose up -d
-docker compose exec netbox /opt/netbox/netbox/manage.py migrate
-```
-
-For editable dev mode instead, use `deploy/netbox-docker/docker-compose.override.yml`.
+Existing installations should follow [Upgrade](Upgrade). Full paths, migrations
+and deployment details are in the
+[server guide](https://github.com/unifi2netbox/netbox-unifi-sync/blob/main/docs/server-install.md).

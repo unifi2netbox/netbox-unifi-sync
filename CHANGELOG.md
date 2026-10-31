@@ -4,6 +4,13 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+### Documentation
+
+- Update README, installation/upgrade guides, configuration, cleanup,
+  troubleshooting, QA and Wiki sources for v0.3.26. Clarify dry-run and
+  process-local lock limits, document standalone PyPI recovery, and correct
+  Docker installation to build and share a custom plugin image.
+
 ## [0.3.26] - 2026-10-31
 
 ### Fixed

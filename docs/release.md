@@ -22,7 +22,7 @@ git tag -a vX.Y.Z -m "Release vX.Y.Z"
 git push origin vX.Y.Z
 ```
 
-4. `release.yml` runs on a user-pushed tag, gates on lint/tests, and creates the GitHub Release. The manual tag workflow calls it directly.
+4. `release.yml` runs on a user-pushed tag, gates on lint/security, dependency audit, Python 3.11/3.12 tests, build and matching versions, and creates the GitHub Release. The manual tag workflow calls it directly.
 5. A standalone `publish-python-package.yml` run publishes to PyPI after verifying the completed release workflow. The manual tag workflow dispatches publication explicitly; manual publication is also available for retry.
 
 ## One-Time Setup
@@ -63,7 +63,8 @@ Configured workflows:
   - dispatches the standalone publish workflow after the release succeeds
 - `release.yml`:
   - runs on push of tags matching `v*`, or as a reusable workflow
-  - runs lint + tests first
+  - runs lint/security, dependency audit, Python 3.11/3.12 tests and package build
+  - requires all three version files to match the release tag
   - creates GitHub Release
   - completion starts standalone publication through `workflow_run`
 - `publish-python-package.yml`:
@@ -82,11 +83,11 @@ Configured workflows:
 1. Commit and push version/changelog updates on `main`.
 2. Open Actions -> `Create Release Tag (manual)`.
 3. Click `Run workflow` and set:
-   - `version`: `0.3.19` (or `v0.3.19`)
+   - `version`: the next unpublished version (for example `0.3.27` or `v0.3.27`)
    - `ref`: `main` (or a specific commit SHA)
    - `verify_version_files`: `true` (recommended)
 4. The workflow creates/pushes `vX.Y.Z`, then calls `release.yml`.
-5. `release.yml` runs lint/tests and creates the GitHub Release.
+5. `release.yml` runs its quality gates and creates the GitHub Release from the matching changelog section.
 6. The manual tag workflow dispatches `publish-python-package.yml`, which publishes to PyPI.
 
 The manual tag workflow calls the release checks explicitly because a tag pushed
@@ -139,3 +140,39 @@ After publish:
 python -m pip index versions netbox-unifi-sync
 pip install netbox-unifi-sync
 ```
+
+## Recovering a Failed Publication
+
+GitHub Release creation and PyPI publication are independent results. Inspect
+**Publish Python Package**, including its `resolve` and `deploy` jobs, rather
+than relying on the presence of a release page. Container startup lines are not
+the upload error; inspect the final HTTP response in the publish step.
+
+1. Fix the reported workflow/configuration error on `main` and pass CI.
+2. For an existing published GitHub Release, run **Publish Python Package** on
+   `main` using its exact tag. Manual retry supports `skip_existing` for artifacts
+   that were already uploaded successfully.
+3. For the older nested-publisher failure, rerunning the failed release workflow
+   jobs can trigger standalone recovery. The resolver accepts a successful
+   quality-gated release job and matching tag commit; a failed build alone does
+   not authorize upload. The historical run may remain red while standalone
+   publication succeeds.
+4. Confirm both wheel and sdist on the exact PyPI version page, then install the
+   published package in a clean environment and run `pip check`.
+
+If an attestation names `release.yml` while PyPI expects
+`publish-python-package.yml`, use the standalone workflow so its identity
+matches the Trusted Publisher. Keep OIDC and attestations enabled. A filename
+already used for different or deleted artifacts requires a new package version;
+do not move the old tag or rebuild different content under the same version.
+
+## Verified v0.3.26 Publication
+
+- [GitHub Release](https://github.com/unifi2netbox/netbox-unifi-sync/releases/tag/v0.3.26)
+- [PyPI version and files](https://pypi.org/project/netbox-unifi-sync/0.3.26/)
+- [Successful standalone publication](https://github.com/unifi2netbox/netbox-unifi-sync/actions/runs/41222067811)
+
+Both wheel and sdist were published, and installation/import of the published
+package was verified. [PR #28](https://github.com/unifi2netbox/netbox-unifi-sync/pull/28)
+contains the runtime fixes; [PR #29](https://github.com/unifi2netbox/netbox-unifi-sync/pull/29)
+fixes publication identity. See [upgrade](upgrade.md) for deployment steps.

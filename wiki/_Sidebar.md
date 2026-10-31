@@ -1,5 +1,6 @@
 - [Home](Home)
 - [Installation](Installation)
+- [Upgrade](Upgrade)
 - [Configuration](Configuration)
 - [Run Sync](Run-Sync)
 - [Release and PyPI](Release-and-PyPI)

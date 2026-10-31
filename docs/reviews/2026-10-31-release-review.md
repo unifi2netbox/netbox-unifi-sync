@@ -97,7 +97,7 @@ Commands used the prepared Python 3.12 virtual environment unless noted.
 
 The full suite was rerun after rebasing on the current main branch and after the
 review fixes. GitHub additionally runs Python 3.11 and 3.12 checks before release.
-The local artifact directory is `/workspace/artifacts/netbox-unifi-sync/0.3.26/`.
+Both 0.3.26 distribution artifacts were retained and validated with `twine check`.
 
 Tools used: shell/Git, GitHub connector, the cloud runtime skill and environment
 status, pytest, Ruff, Bandit, pip-audit, actionlint, build, twine, and Django's
@@ -134,3 +134,13 @@ The follow-up runs publication as a standalone workflow, retains OIDC and
 attestations, and verifies successful release creation and the tag's commit
 before uploading. Manual tag creation dispatches this standalone workflow;
 tag-push releases use workflow_run completion. Existing release tags are not moved.
+
+### Verified publication outcome
+
+The standalone publish workflow passed in
+[run 41222067811](https://github.com/unifi2netbox/netbox-unifi-sync/actions/runs/41222067811).
+PyPI returned version 0.3.26 with both wheel and sdist, and the published package
+was installed in a clean environment, passed `pip check` and imported the sync
+engine. PR #29 and merged-main CI passed with 249 tests and one existing skipped
+live-NetBox placeholder. These follow-up results supplement the original
+241-test runtime review above; live staging limitations remain.

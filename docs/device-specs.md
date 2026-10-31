@@ -2,10 +2,13 @@
 
 Device type enrichment combines two sources at runtime:
 
-1. `UNIFI_MODEL_SPECS` in `netbox_unifi_sync/services/unifi/model_specs.py` (**46 hardcoded models**)
-2. `data/ubiquiti_device_specs.json` (community bundle):
-   - **173** entries indexed by model (`by_model`)
-   - **166** entries indexed by part number (`by_part`)
+1. `UNIFI_MODEL_SPECS` in `netbox_unifi_sync/services/unifi/model_specs.py`
+2. The packaged `netbox_unifi_sync/services/data/ubiquiti_device_specs.json`
+   community bundle, indexed by model (`by_model`) and part number (`by_part`).
+
+The source checkout also keeps `data/ubiquiti_device_specs.json`. Runtime checks
+the packaged location before the checkout copy; refresh both when updating a
+release bundle. Model counts change as the bundle is refreshed.
 
 Optional startup refresh (env-controlled) can rebuild the bundle from:
 - `netbox-community/devicetype-library` (same upstream data used by Device-Type-Library-Import)
@@ -43,12 +46,14 @@ This refreshes the in-memory bundle at startup before sync begins.
 
 ```bash
 python3 tools/refresh_unifi_specs.py
+cp data/ubiquiti_device_specs.json netbox_unifi_sync/services/data/ubiquiti_device_specs.json
 ```
 
 With UniFi Store enrichment disabled:
 
 ```bash
 python3 tools/refresh_unifi_specs.py --skip-store
+cp data/ubiquiti_device_specs.json netbox_unifi_sync/services/data/ubiquiti_device_specs.json
 ```
 
 ## Synced Template Types
@@ -59,7 +64,10 @@ python3 tools/refresh_unifi_specs.py --skip-store
 - console port templates (`dcim.console_port_templates`)
 - power port templates (`dcim.power_port_templates`)
 
-If expected template set differs from existing templates, current templates are replaced for that device type.
+For plugin-managed types, a differing expected template set can replace existing
+templates. Normal device sync skips enrichment for a curated type selected by
+its SKU/library identity. The cleanup type-refresh pass is separate and can
+refresh matching specs or delete unused types; review it before enabling cleanup.
 
 ## Runtime Port Metadata
 
@@ -117,12 +125,29 @@ is enriched with:
 - noise floor
 - state/enabled status
 
-## Auto-Create Device Types
+## Device Type Selection and Creation
 
-When UniFi reports an unknown model:
+Before creating a type, normal device sync looks for:
 
-1. `_resolve_device_specs(model)` is called
-2. If specs exist, a NetBox device type is created
-3. `ensure_device_type_specs()` applies template sync and metadata fields
+1. A part-number match for the model's known SKU or reported model, ignoring case
+   and separators. A product-named library type is preferred over a code-named one.
+2. A community-library slug or product-model match.
+3. An exact reported-model match under the selected manufacturer.
 
-If no spec is found, devices still sync, but without enriched template definitions.
+The manufacturer lookup prefers `ubiquiti` and accepts legacy `ubiquity`.
+An imported type can therefore retain a product name while matching UniFi model
+codes and variants such as `USW 48 POE` and `USW-48-POE`. Curated types retain
+specs/templates during normal device sync. New types use community metadata
+where available; otherwise a basic type is created without enriched templates.
+
+## Live Readings and Component Counters
+
+`SYNC_LIVE_READINGS=false` omits supported rapidly changing metadata such as
+PoE draw, radio utilization, uptime and client signal/AP/timestamps. Set it in
+the worker environment; it has no Settings UI field. Stable metadata remains.
+
+Power ports created from device-type templates rely on NetBox counter caches.
+Version 0.3.26 refreshes signal-updated counters before subsequent saves. This
+prevents newly created ports from becoming hidden by a stale zero count; it is
+not a bulk repair of counters already incorrect from an older release. See
+[troubleshooting](troubleshooting.md#power-ports-exist-but-the-device-tab-shows-zero).

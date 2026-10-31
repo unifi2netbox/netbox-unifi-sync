@@ -8,6 +8,7 @@ Production-focused UniFi -> NetBox synchronization as an in-platform NetBox plug
 
 ## Documentation
 
+- [Upgrade to v0.3.26](./upgrade.html)
 - [Server Install Guide](./server-install.html)
 - [NetBox Plugin Mode](./netbox-plugin.html)
 - [Configuration](./configuration.html)
@@ -34,5 +35,13 @@ flowchart LR
 ## Notes
 
 - Primary sync direction is UniFi -> NetBox.
-- DHCP-to-static conversion can update UniFi device IP settings when a DHCP-range match is detected.
+- DHCP-to-static conversion writes to UniFi only when `dhcp_writeback_enabled` is explicitly enabled.
 - Local UniFi Integration API keys are supported; `unifi.ui.com` cloud keys are not drop-in compatible.
+
+## Current release
+
+[v0.3.26](https://github.com/unifi2netbox/netbox-unifi-sync/releases/tag/v0.3.26)
+is published on [PyPI](https://pypi.org/project/netbox-unifi-sync/0.3.26/).
+Start with the upgrade guide for changed prefix, identity, device-type and
+cleanup behavior. The [release review](reviews/2026-10-31-release-review.md)
+records verification and staging limitations.

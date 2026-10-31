@@ -32,7 +32,7 @@ flowchart LR
 - Login endpoints are auto-tried:
   - `/api/auth/login` (UniFi OS)
   - `/api/login` (legacy)
-- Uses cookie session and optional CSRF token
+- Clears cached cookies and CSRF state before a fresh login, then uses the new session cookie and optional CSRF token
 - Session metadata is cached in `~/.unifi_session.json` with file mode `0600` (and auto-tightened if existing file permissions are too open)
 
 ## Request Behavior
@@ -79,7 +79,7 @@ processes.
 ## Sync Flow (high-level)
 
 1. Load runtime config from plugin models (`Settings`, `Controllers`, `Site mappings`)
-2. Merge optional non-secret bootstrap defaults from `PLUGINS_CONFIG["netbox_unifi_sync"]`
+2. Use the UI model state as runtime input; non-secret `PLUGINS_CONFIG` defaults are optional bootstrap input
 3. Resolve NetBox tenant/roles/sites
 4. Group controllers by credentials and effective site mappings, then process
    each compatible group (controllers within a group run in parallel)
@@ -112,3 +112,28 @@ flowchart TD
 - NetBox TLS verification is controlled by `NETBOX_VERIFY_SSL` (default `true`)
 - UniFi session persistence is controlled by `UNIFI_PERSIST_SESSION` (default `true`)
 - UniFi credentials are sourced from `Controllers` UI fields (`api_key_ref`, `username_ref`, `password_ref`, `mfa_secret_ref`)
+
+## Identity and ORM persistence
+
+Devices are looked up by site and resolved serial, with deterministic bounded
+name suffixes for collisions. Device-type selection prefers normalized library
+SKUs and preserves curated types during normal device sync. Manufacturer lookup
+accepts `ubiquiti` before the legacy `ubiquity` slug.
+
+The ORM adapter snapshots objects before mutation and writes concrete foreign
+keys through their column attributes. Savepoints contain recoverable uniqueness
+failures. Counter-cache fields are refreshed after create and before later saves
+so signal-updated component counts are not replaced by stale instance values.
+Each submitted thread task receives a fresh copy of the caller's context,
+including NetBox's change-logging request context.
+
+## Preflight and publication boundaries
+
+Dry-run checks NetBox database/model access and controller access; failed NetBox
+preflight stops before controller checks. It is not a DCIM/IPAM change preview.
+Run records and audit events are operational writes outside object sync.
+
+Releases gate on lint/security, dependency audit, Python 3.11/3.12 tests, build
+and matching version metadata. PyPI publication runs in its own workflow to
+match its OIDC/attestation identity. See [release](release.md) for validation and
+retry behavior, and [upgrade](upgrade.md) for deployment checks.

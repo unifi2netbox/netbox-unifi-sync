@@ -11,7 +11,7 @@ Include:
 - Deployment mode (`venv` or `netbox-docker`)
 - Python version in NetBox + worker runtime
 - Exact failing action (UI run, scheduler run, CLI run, release workflow, etc.)
-- Full error text from:
+- Sanitized error text from:
   - `Plugins -> UniFi Sync -> Runs -> Run detail`
   - worker logs
 
@@ -30,7 +30,7 @@ Do not include secrets (API keys, passwords, MFA secrets, tokens, cookies).
 From repository root:
 
 ```bash
-docker run --rm -v "$PWD":/work -w /work python:3.12 bash -lc "python -m pip install --upgrade pip && pip install -r requirements.txt -e . ruff bandit && ruff check netbox_unifi_sync/ && bandit -r netbox_unifi_sync/ -ll"
+docker run --rm -v "$PWD":/work -w /work python:3.12 bash -lc "python -m pip install --upgrade pip && pip install -r requirements.txt -e . ruff bandit pip-audit && ruff check netbox_unifi_sync/ && bandit -r netbox_unifi_sync/ -ll && pip-audit -r requirements.txt"
 docker run --rm -v "$PWD":/work -w /work python:3.11 bash -lc "python -m pip install --upgrade pip && pip install -r requirements.txt -e . pytest && pytest -q"
 docker run --rm -v "$PWD":/work -w /work python:3.12 bash -lc "python -m pip install --upgrade pip && pip install -r requirements.txt -e . pytest && pytest -q"
 ```
@@ -55,3 +55,19 @@ python manage.py netbox_unifi_sync_run --dry-run --json
 - Relevant worker log excerpt around failure timestamp
 - Sanitized controller test result from:
   - `POST /plugins/unifi-sync/api/controllers/<pk>/test/`
+
+## Details for v0.3.26 Regressions
+
+For prefixes, include `sync_prefixes`, VRF/site scope and whether independent
+workers overlapped. For naming/type matching, include sanitized incoming model,
+resolved serial strategy, existing device site/tenant and device-type part
+number/slug. For hidden power ports, compare actual component rows with cached
+counts and say whether the device predates the upgrade.
+
+For publication failures, link the workflow run and failing step. Container
+startup output is not the actual PyPI error; include the sanitized HTTP/error
+response near the end of the publish step. Never paste OIDC tokens or credentials.
+
+A successful unit suite or dry-run does not establish live NetBox/UniFi behavior.
+State which staging checks were actually performed; use the
+[QA checklist](qa-checklist.md).

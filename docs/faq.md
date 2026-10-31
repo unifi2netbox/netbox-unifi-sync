@@ -31,12 +31,17 @@ The user needs `view` on `netbox_unifi_sync.SyncRun` to open the dashboard and
 
 ### What if UniFi site names differ from NetBox site names?
 
-Use `Site mappings` in plugin UI. You can set global mappings or controller-specific mappings.
+Use `Site mappings` in plugin UI. Controller-specific rows override global rows.
+Controllers with different effective mappings execute separately, including when
+they share credentials. Cleanup is skipped across separate execution groups.
 
 ### Are prefixes created automatically?
 
 Yes. Prefix sync is enabled by default (same strategy as VLAN sync).  
-If a UniFi subnet is missing in NetBox, prefix is created.
+If a UniFi subnet is missing in NetBox, a prefix can be created when
+`sync_prefixes=true`. With it disabled, no new prefixes are created; primary IPs
+reuse an existing parent's mask or use a host mask if none exists. Existing
+prefixes are retained.
 
 ### Are DHCP scopes visible in NetBox IP Ranges?
 
@@ -87,3 +92,31 @@ Yes. SSL verification defaults to `true`.
 2. Validate `tenant_name` and `netbox_roles` in `Settings`.
 3. Validate `Site mappings`.
 4. Inspect latest run details and worker logs.
+
+### Does dry-run show the changes that a full sync would make?
+
+No. It checks configuration, NetBox access and controller authentication/site
+access. It does not calculate a device-by-device diff or a cleanup deletion
+preview. Run/audit history and controller session state may be recorded.
+
+### What if two devices have the same name?
+
+Hardware is matched using the configured serial strategy. Name collisions use a
+stable serial suffix, including on rename. Ambiguous or missing identifiers are
+logged and skipped. See [identity settings](configuration.md#vrf-and-serial-strategy).
+
+### Will imported device types be overwritten?
+
+Normal device sync prefers matching library types by normalized part number and
+leaves curated specs alone. Cleanup has a separate type-refresh/delete pass; see
+[device specs](device-specs.md) and [cleanup](cleanup.md).
+
+### How do I reduce change-log noise?
+
+Set the worker environment option `SYNC_LIVE_READINGS=false` to omit supported
+per-poll readings. See [configuration](configuration.md#advanced-live-readings).
+
+### How do I upgrade?
+
+Follow the [v0.3.26 upgrade guide](upgrade.md). Upgrade the same package in web
+and worker runtimes, apply pending migrations, and restart both services.

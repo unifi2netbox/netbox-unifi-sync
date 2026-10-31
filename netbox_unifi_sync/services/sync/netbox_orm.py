@@ -25,6 +25,7 @@ already uses::
 from __future__ import annotations
 
 import logging
+from contextlib import nullcontext
 from ipaddress import ip_interface
 from typing import Any
 
@@ -97,6 +98,26 @@ def _snapshot_before_change(instance):
         instance.snapshot()
     except Exception as exc:
         logger.debug("snapshot() failed on %r (non-fatal): %s", instance, exc)
+
+
+def _atomic_write():
+    # Keep constraint failures recoverable inside a surrounding sync transaction.
+    try:
+        from django.db import transaction
+    except ImportError:
+        return nullcontext()
+    return transaction.atomic()
+
+
+def _refresh_component_counters(instance):
+    """Signals update cached counters in the database, not on this instance."""
+    meta = getattr(instance, "_meta", None)
+    fields = [
+        field.name for field in getattr(meta, "concrete_fields", ())
+        if any(cls.__name__ == "CounterCacheField" for cls in type(field).__mro__)
+    ]
+    if fields:
+        instance.refresh_from_db(fields=fields)
 
 
 class _OrmObject:
@@ -226,16 +247,14 @@ class _OrmObject:
 
     def save(self, update_fields=None):
         instance = object.__getattribute__(self, "_instance")
-        # The pre-change snapshot is normally taken by __setattr__ before the
-        # first modification; take one here only if nothing was modified
-        # through the wrapper.
+        # Preserve the snapshot taken before the first attribute change.
         _snapshot_before_change(instance)
-        if update_fields:
-            instance.save(update_fields=update_fields)
-        else:
-            instance.save()
-        # The change record has been written by the post_save handler; the next
-        # modification needs a fresh snapshot.
+        _refresh_component_counters(instance)
+        with _atomic_write():
+            if update_fields:
+                instance.save(update_fields=update_fields)
+            else:
+                instance.save()
         instance.__dict__.pop("_prechange_snapshot", None)
 
     def delete(self):
@@ -479,7 +498,9 @@ class _Endpoint:
             # initialised request context and may reject valid payloads on
             # unsaved instances.  Django's save() enforces DB constraints
             # (NOT NULL, UNIQUE) at the database level instead.
-            instance.save()
+            with _atomic_write():
+                instance.save()
+            _refresh_component_counters(instance)
         except Exception as exc:
             raise RuntimeError(
                 f"ORM create failed for {self._model.__name__}: {exc}"

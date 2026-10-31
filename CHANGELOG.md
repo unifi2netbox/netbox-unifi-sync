@@ -4,6 +4,18 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+### Fixed
+
+- Honor disabled prefix sync for inferred device subnets, retain primary IP
+  assignment with a host mask when no parent exists, and serialize prefix
+  creation across sync worker threads (#26).
+- Recover from ORM device name conflicts on create and rename using a stable
+  serial suffix; skip ambiguous hardware matches with a warning (#17).
+- Refresh component counter caches after creation and before subsequent ORM
+  saves so newly created power ports remain visible (#16).
+- Resolve community device types by part number, slug, and library model before
+  creating a type; normalize spaces and hyphens in part numbers (#15).
+
 ## [0.3.25] - 2026-09-05
 
 Supersedes v0.3.24, which was tagged on 2026-08-10 but never reached PyPI

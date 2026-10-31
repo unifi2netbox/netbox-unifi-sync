@@ -223,7 +223,17 @@ def _infer_prefix_from_unifi_network_cache(ip_str):
     return ipaddress.ip_network(f"{ip_str}/64", strict=False)
 
 
+_prefix_creation_lock = threading.RLock()
+
+
 def ensure_prefix_for_ip(nb, site, tenant, vrf, ip_str):
+    if not _sync_option("SYNC_PREFIXES"):
+        return None
+    with _prefix_creation_lock:
+        return _ensure_prefix_for_ip(nb, site, tenant, vrf, ip_str)
+
+
+def _ensure_prefix_for_ip(nb, site, tenant, vrf, ip_str):
     """
     Ensure a prefix exists for the given IP. Returns a prefix object or None.
     Prefix is only created if missing.
@@ -1003,6 +1013,13 @@ def _extract_prefix_cidr(net):
 
 
 def sync_site_prefixes(nb, site_obj, nb_site, tenant, unifi=None):
+    if not _sync_option("SYNC_PREFIXES"):
+        return
+    with _prefix_creation_lock:
+        return _sync_site_prefixes(nb, site_obj, nb_site, tenant, unifi)
+
+
+def _sync_site_prefixes(nb, site_obj, nb_site, tenant, unifi=None):
     """Sync prefixes from UniFi network configs to NetBox."""
     try:
         networks = list(site_obj.network_conf.all() or [])
@@ -2566,10 +2583,10 @@ def _lookup_community_specs(part_number=None, model=None):
         hit = specs["by_part"].get(part_number)
         if hit:
             return hit
-        # Case-insensitive fallback
-        pn_upper = part_number.upper()
+        # UniFi revisions use spaces and hyphens interchangeably.
+        pn_upper = re.sub(r"[^A-Z0-9]", "", part_number.upper())
         for key, val in specs["by_part"].items():
-            if key.upper() == pn_upper:
+            if re.sub(r"[^A-Z0-9]", "", key.upper()) == pn_upper:
                 return val
     # Try model name
     if model:
@@ -2595,7 +2612,7 @@ def _resolve_device_specs(model):
     # Look up community specs by part_number or model name
     community = _lookup_community_specs(part_number=part_number, model=model)
     # Fallback: try model code as part_number (e.g. "US48PRO" might match)
-    if not community and not part_number:
+    if not community:
         community = _lookup_community_specs(part_number=model)
 
     if not community and not hardcoded:
@@ -2695,7 +2712,7 @@ def part_number_for_model(model):
 
 
 def _normalise_part_number(value):
-    return re.sub(r"[^a-z0-9]+", "-", str(value or "").lower()).strip("-")
+    return re.sub(r"[^a-z0-9]", "", str(value or "").lower())
 
 
 def find_device_type(nb, manufacturer, model):
@@ -2708,7 +2725,8 @@ def find_device_type(nb, manufacturer, model):
     "USW-Pro-Max-48-PoE") and still be found. curated is True when the match
     came through the part number on a type not named after the code.
     """
-    part_number = part_number_for_model(model)
+    specs = _resolve_device_specs(model) or {}
+    part_number = part_number_for_model(model) or model
     if part_number:
         # Spellings differ between sources ("UDM-Pro-Max" vs "UDM-PRO-MAX",
         # "USW-Flex-2.5G-5" vs "USW-Flex-2-5G-5"): compare normalised.
@@ -2722,6 +2740,14 @@ def find_device_type(nb, manufacturer, model):
             return curated[0], True
         if candidates:
             return candidates[0], False
+    for field in ("slug", "model_name"):
+        if specs.get(field):
+            hit = nb.dcim.device_types.get(
+                manufacturer_id=manufacturer.id,
+                **{"model" if field == "model_name" else field: specs[field]},
+            )
+            if hit:
+                return hit, str(hit.model) != model
     return nb.dcim.device_types.get(model=model, manufacturer_id=manufacturer.id), False
 
 
@@ -2836,6 +2862,23 @@ def _ensure_device_type_specs_inner(nb, nb_device_type, model, specs):
         _sync_templates(nb, nb_device_type, model, nb.dcim.power_port_templates, expected_power, "power-port")
 
 
+def _device_serial_name(name, serial):
+    suffix = f"_{serial}"
+    return f"{name[:64 - len(suffix)]}{suffix}"
+
+
+def _is_device_name_conflict(error):
+    while error is not None:
+        constraint = getattr(getattr(error, "diag", None), "constraint_name", "") or ""
+        message = str(error).lower()
+        if (constraint.startswith("dcim_device_unique_name")
+                or "dcim_device_unique_name" in message
+                or "device name must be unique per site" in message):
+            return True
+        error = error.__cause__
+    return False
+
+
 def process_device(unifi, nb, site, device, nb_ubiquity, tenant, unifi_device_ips=None, unifi_site_obj=None):
     """Process a device and add it to NetBox."""
     try:
@@ -2865,13 +2908,13 @@ def process_device(unifi, nb, site, device, nb_ubiquity, tenant, unifi_device_ip
 
         # Device Type creation
         logger.debug(f"Checking for existing device type: {device_model} (manufacturer ID: {nb_ubiquity.id})")
+        specs = _resolve_device_specs(device_model)
         nb_device_type, curated_type = find_device_type(nb, nb_ubiquity, device_model)
         if not nb_device_type:
             # Pre-populate from community specs when creating a new device type
-            specs = _resolve_device_specs(device_model)
             create_data = {
                 "manufacturer": nb_ubiquity.id,
-                "model": device_model,
+                "model": (specs or {}).get("model_name") or device_model,
                 "slug": (specs or {}).get("slug") or slugify(f'{nb_ubiquity.name}-{device_model}'),
             }
             if specs:
@@ -2897,7 +2940,7 @@ def process_device(unifi, nb, site, device, nb_ubiquity, tenant, unifi_device_ip
                 error_message = str(e).lower()
                 if "duplicate key value violates unique constraint" in error_message:
                     # Race condition guard: another worker may have created the same type just before us.
-                    nb_device_type = nb.dcim.device_types.get(model=device_model, manufacturer_id=nb_ubiquity.id)
+                    nb_device_type, curated_type = find_device_type(nb, nb_ubiquity, device_model)
                     if not nb_device_type and create_data.get("part_number"):
                         nb_device_type = nb.dcim.device_types.get(
                             part_number=create_data["part_number"], manufacturer_id=nb_ubiquity.id
@@ -2921,7 +2964,11 @@ def process_device(unifi, nb, site, device, nb_ubiquity, tenant, unifi_device_ip
 
         # Check for existing device
         logger.debug(f"Checking if device already exists: {device_name} (serial: {device_serial})")
-        nb_device = nb.dcim.devices.get(site_id=site.id, serial=device_serial)
+        try:
+            nb_device = nb.dcim.devices.get(site_id=site.id, serial=device_serial)
+        except ValueError:
+            logger.warning("Ambiguous serial %s at site %s; skipping device", device_serial, site.name)
+            return
         if nb_device:
             logger.info(f"Device {device_name} with serial {device_serial} already exists. Checking IP...")
             # Update device name if changed in UniFi
@@ -2931,9 +2978,12 @@ def process_device(unifi, nb, site, device, nb_ubiquity, tenant, unifi_device_ip
                 try:
                     nb_device.save()
                     logger.info(f"Updated device name from '{old_name}' to '{device_name}'")
-                except pynetbox.core.query.RequestError as e:
-                    logger.warning(f"Failed to update device name to '{device_name}': {e}")
-                    nb_device.name = old_name  # Revert on failure
+                except Exception as e:
+                    nb_device.name = old_name
+                    if not _is_device_name_conflict(e):
+                        raise
+                    nb_device.name = _device_serial_name(device_name, device_serial)
+                    nb_device.save()
             # Update device type if model changed
             current_type_id = nb_device.device_type.id if nb_device.device_type else None
             if nb_device_type and current_type_id != nb_device_type.id:
@@ -3003,12 +3053,11 @@ def process_device(unifi, nb, site, device, nb_ubiquity, tenant, unifi_device_ip
                 if nb_device:
                     logger.info(f"Device {device_name} serial {device_serial} with ID {nb_device.id} successfully added to NetBox.")
             except pynetbox.core.query.RequestError as e:
-                error_message = str(e)
-                if "Device name must be unique per site" in error_message:
+                if _is_device_name_conflict(e):
                     logger.warning(f"Device name {device_name} already exists at site {site}. "
                                    f"Trying with name {device_name}_{device_serial}.")
                     try:
-                        device_data['name'] = f"{device_name}_{device_serial}"
+                        device_data['name'] = _device_serial_name(device_name, device_serial)
                         nb_device = nb.dcim.devices.create(device_data)
                         if nb_device:
                             logger.info(f"Device {device_name} with ID {nb_device.id} successfully added to NetBox.")
@@ -3150,11 +3199,10 @@ def process_device(unifi, nb, site, device, nb_ubiquity, tenant, unifi_device_ip
                 prefix_vrf_id = prefix_vrf.get("id") if isinstance(prefix_vrf, dict) else getattr(prefix_vrf, "id", None)
                 if not prefix_vrf_id:
                     vrf_for_ip = None
-            else:
-                logger.warning(f"No prefix found for IP {device_ip} for device {device_name}. Skipping...")
-                return
-        selected_prefix = prefixes[0]
-        subnet_mask = str(selected_prefix.prefix).split('/')[1]
+        subnet_mask = (
+            str(prefixes[0].prefix).split('/')[1]
+            if prefixes else str(ipaddress.ip_address(device_ip).max_prefixlen)
+        )
         ip = f'{device_ip}/{subnet_mask}'
         if nb_device:
             # Check if the IP has changed compared to what NetBox has

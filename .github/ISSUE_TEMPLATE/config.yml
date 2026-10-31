@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Questions and usage support
+    url: https://github.com/unifi2netbox/netbox-unifi-sync/discussions
+    about: Ask setup, configuration, and usage questions here.
+  - name: Project documentation
+    url: https://github.com/unifi2netbox/netbox-unifi-sync#readme
+    about: Review installation, configuration, and troubleshooting docs before opening a bug report.

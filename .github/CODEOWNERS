@@ -1,0 +1,45 @@
+# Contributing to netbox-unifi-sync
+
+This project is designed to be easy to work on without requiring the maintainer to hand-hold every step.
+
+## Quick start
+
+1. Fork and clone the repo.
+2. Create a Python virtual environment.
+3. Install dependencies and the package in editable mode.
+4. Run lint and tests.
+5. Open a focused PR.
+
+```bash
+git clone https://github.com/<your-user>/netbox-unifi-sync.git
+cd netbox-unifi-sync
+python -m venv .venv
+source .venv/bin/activate
+python -m pip install --upgrade pip
+pip install -r requirements.txt
+pip install -e .
+ruff check netbox_unifi_sync/
+pytest -q
+```
+
+## Local NetBox validation
+
+For end-to-end validation, see `deploy/netbox-docker/README.md`.
+
+## Contribution standards
+
+- Keep changes small and reviewable.
+- Prefer one issue -> one PR.
+- Add or update tests for behavior changes.
+- Document user-visible changes.
+- Avoid committing secrets or local environment details.
+
+## Before opening a PR
+
+- Confirm the change is needed and documented.
+- Run the relevant lint/test commands.
+- Include a short summary of the problem and the fix.
+
+## Maintainer policy
+
+This repository is maintained in spare time. Contributions are welcome, and the project is organized so contributors can independently validate and submit work without a long setup process.

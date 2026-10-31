@@ -14,6 +14,24 @@ Optional startup refresh (env-controlled) can rebuild the bundle from:
 - `netbox-community/devicetype-library` (same upstream data used by Device-Type-Library-Import)
 - UniFi Store technical specs (`UNIFI_SPECS_INCLUDE_STORE=true`)
 
+## Bundled Snapshot: 2026-10-31
+
+The checked-in copies contain 201 part-number entries and 499 model-name/alias
+entries. They incorporate all 198 Ubiquiti definitions from
+[Device Type Library commit f3a04d6](https://github.com/netbox-community/devicetype-library/commit/f3a04d6520b678b920438ad441cfa9b03e5bdaf2).
+Seventeen upstream part numbers were added relative to the previous packaged
+bundle, including U7-LR, UDR7, UX7, UNVR-G2-Pro and USW-Pro-XG-Aggregation.
+
+The refresh preserves complete current library fields and adds the normalized
+`console_ports`/`power_ports` fields consumed by the engine. Existing model
+aliases, PoE budgets and three legacy/store-only part entries are retained.
+Previously available Store enrichment was preserved, not fetched again in this
+snapshot. The source and packaged JSON copies are byte-identical.
+
+Preserving library metadata such as module bays, device bays, images and power
+outlets does not add synchronization support for those components. The engine
+continues to synchronize only its supported template types listed below.
+
 ## Merge Strategy
 
 `_resolve_device_specs(model)`:

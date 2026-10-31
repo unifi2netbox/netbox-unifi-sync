@@ -1,6 +1,6 @@
 # QA Checklist (Production Readiness)
 
-Checklisten gælder staging-validering før udrulning af v0.3.26. Markér kun checks,
+Checklisten gælder staging-validering før udrulning af v0.3.27. Markér kun checks,
 der faktisk er udført. En grøn unit-test eller dry-run erstatter ikke en test af
 den konkrete NetBox/PostgreSQL-, RQ- og UniFi-installation.
 

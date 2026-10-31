@@ -1,8 +1,8 @@
 # Release and PyPI
 
 The current package is
-[netbox-unifi-sync 0.3.26](https://pypi.org/project/netbox-unifi-sync/0.3.26/).
-The [GitHub Release](https://github.com/unifi2netbox/netbox-unifi-sync/releases/tag/v0.3.26)
+[netbox-unifi-sync 0.3.27](https://pypi.org/project/netbox-unifi-sync/0.3.27/).
+The [GitHub Release](https://github.com/unifi2netbox/netbox-unifi-sync/releases/tag/v0.3.27)
 and PyPI upload are separate publication results.
 
 ## Maintainer workflow

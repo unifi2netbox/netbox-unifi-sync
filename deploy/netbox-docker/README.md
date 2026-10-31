@@ -1,7 +1,7 @@
 # NetBox Docker Setup
 
 Use a disposable staging stack for live validation of the plugin. Current
-package: `netbox-unifi-sync==0.3.26`. Stock netbox-docker images do not install a
+package: `netbox-unifi-sync==0.3.27`. Stock netbox-docker images do not install a
 repository-local requirements file automatically; build a custom image or use
 the separate editable development option below.
 
@@ -23,7 +23,7 @@ From the plugin repository root, create or update
 required plugins:
 
 ```text
-netbox-unifi-sync==0.3.26
+netbox-unifi-sync==0.3.27
 ```
 
 Create `.netbox-docker/Dockerfile-Plugins`:
@@ -46,7 +46,7 @@ Create `.netbox-docker/docker-compose.override.yml`:
 ```yaml
 services:
   netbox:
-    image: netbox-unifi-sync:0.3.26
+    image: netbox-unifi-sync:0.3.27
     pull_policy: never
     build:
       context: .
@@ -54,7 +54,7 @@ services:
     ports:
       - "127.0.0.1:8000:8080"
   netbox-worker:
-    image: netbox-unifi-sync:0.3.26
+    image: netbox-unifi-sync:0.3.27
     pull_policy: never
 ```
 

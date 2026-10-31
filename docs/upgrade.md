@@ -1,8 +1,8 @@
-# Upgrade to v0.3.26
+# Upgrade to v0.3.27
 
-Version **0.3.26**, released on **2026-10-31**, is available as a
-[GitHub Release](https://github.com/unifi2netbox/netbox-unifi-sync/releases/tag/v0.3.26)
-and on [PyPI](https://pypi.org/project/netbox-unifi-sync/0.3.26/).
+Version **0.3.27**, released on **2026-10-31**, is available as a
+[GitHub Release](https://github.com/unifi2netbox/netbox-unifi-sync/releases/tag/v0.3.27)
+and on [PyPI](https://pypi.org/project/netbox-unifi-sync/0.3.27/).
 The package supports NetBox 4.2–4.x and Python 3.11+; CI checks Python 3.11 and
 3.12. Use the Python version required by your NetBox deployment.
 
@@ -22,7 +22,7 @@ The package supports NetBox 4.2–4.x and Python 3.11+; CI checks Python 3.11 an
 Using the usual `/opt/netbox` layout:
 
 ```bash
-/opt/netbox/venv/bin/python -m pip install --upgrade netbox-unifi-sync==0.3.26
+/opt/netbox/venv/bin/python -m pip install --upgrade netbox-unifi-sync==0.3.27
 /opt/netbox/venv/bin/python -m pip check
 /opt/netbox/venv/bin/python /opt/netbox/netbox/manage.py migrate
 /opt/netbox/venv/bin/python /opt/netbox/netbox/manage.py check
@@ -35,14 +35,14 @@ Confirm the version in each runtime:
 /opt/netbox/venv/bin/python -c 'from netbox_unifi_sync.version import __version__; print(__version__)'
 ```
 
-Version 0.3.26 adds no schema migration. Still apply pending migrations from
+Versions 0.3.26 and 0.3.27 add no schema migration. Still apply pending migrations from
 older versions. Migration `0009_unique_global_site_mapping` rejects duplicate
 global mappings instead of deleting them; reconcile the reported rows before
 retrying migration if upgrading from before that change.
 
 ## netbox-docker
 
-Set the package requirement to `netbox-unifi-sync==0.3.26` in the custom image's
+Set the package requirement to `netbox-unifi-sync==0.3.27` in the custom image's
 `local_requirements.txt`, replacing an older pin. Build and deploy the same
 image for `netbox` and `netbox-worker`; adding the file without a custom image
 build does not install the plugin. See the [Docker guide](../deploy/netbox-docker/README.md).
@@ -59,6 +59,15 @@ docker compose exec netbox-worker /opt/netbox/venv/bin/python -c 'from netbox_un
 
 Editable development mounts use the checkout's version and need restarts of
 both services. Keep that development setup separate from an image-based rollout.
+
+## Specs refresh in v0.3.27
+
+This release includes the synchronized source/packaged device-spec snapshot:
+201 part-number entries and 499 model-name/alias entries, including 17 new
+upstream part numbers. Existing aliases, PoE enrichment and legacy entries are
+retained. See [device specs](device-specs.md#bundled-snapshot-2026-10-31) for
+provenance and scope. The runtime fixes below were introduced in v0.3.26 and
+remain applicable when upgrading from older versions.
 
 ## Changed behavior to verify
 

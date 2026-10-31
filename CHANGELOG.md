@@ -4,6 +4,14 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+## [0.3.27] - 2026-10-31
+
+### Fixed
+
+- Run PyPI publication as a standalone workflow so its OIDC and artifact
+  attestation identity matches the configured Trusted Publisher, with verified
+  release/tag prerequisites and support for retrying publication.
+
 ### Data
 
 - Refresh both Ubiquiti device-spec bundles from Device Type Library commit
@@ -14,6 +22,9 @@ All notable changes to this project are documented in this file.
 
 ### Documentation
 
+- Add repository-specific `AGENTS.md` instructions based on contribution rules
+  and the actual architecture, testing, security and release boundaries.
+- Update current installation/upgrade examples for v0.3.27.
 - Update README, installation/upgrade guides, configuration, cleanup,
   troubleshooting, QA and Wiki sources for v0.3.26. Clarify dry-run and
   process-local lock limits, document standalone PyPI recovery, and correct

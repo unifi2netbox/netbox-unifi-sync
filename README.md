@@ -117,8 +117,8 @@ flowchart TD
 
 ## Current release
 
-[v0.3.26](https://github.com/unifi2netbox/netbox-unifi-sync/releases/tag/v0.3.26)
-is available on [PyPI](https://pypi.org/project/netbox-unifi-sync/0.3.26/).
+[v0.3.27](https://github.com/unifi2netbox/netbox-unifi-sync/releases/tag/v0.3.27)
+is available on [PyPI](https://pypi.org/project/netbox-unifi-sync/0.3.27/).
 It fixes disabled-prefix sync, duplicate device names, power-port counters and
 library device-type matching. It also improves credential/mapping isolation,
 authorization and dependency security. See the [upgrade guide](docs/upgrade.md)
@@ -293,7 +293,7 @@ scheduler run in their administrative/server context.
 
 ## Documentation
 
-- [Upgrade to v0.3.26](docs/upgrade.md)
+- [Upgrade to v0.3.27](docs/upgrade.md)
 - [Server install guide](docs/server-install.md)
 - [NetBox plugin mode](docs/netbox-plugin.md)
 - [Configuration reference](docs/configuration.md)

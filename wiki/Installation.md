@@ -1,11 +1,11 @@
 # Installation
 
-Current release: [v0.3.26](https://pypi.org/project/netbox-unifi-sync/0.3.26/).
+Current release: [v0.3.27](https://pypi.org/project/netbox-unifi-sync/0.3.27/).
 Install into the Python environment used by NetBox and every worker. The plugin
 supports NetBox 4.2–4.x and Python 3.11+; respect NetBox's own Python requirements.
 
 ```bash
-python -m pip install netbox-unifi-sync==0.3.26
+python -m pip install netbox-unifi-sync==0.3.27
 python -m pip check
 ```
 

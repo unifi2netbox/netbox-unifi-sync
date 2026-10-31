@@ -15,8 +15,8 @@ flowchart LR
 
 ## Aktuel release
 
-[v0.3.26](https://github.com/unifi2netbox/netbox-unifi-sync/releases/tag/v0.3.26)
-er publiceret på [PyPI](https://pypi.org/project/netbox-unifi-sync/0.3.26/).
+[v0.3.27](https://github.com/unifi2netbox/netbox-unifi-sync/releases/tag/v0.3.27)
+er publiceret på [PyPI](https://pypi.org/project/netbox-unifi-sync/0.3.27/).
 Se [Upgrade](Upgrade) for udrulning, ændret sync-adfærd og staging-checks.
 
 ## Quick links

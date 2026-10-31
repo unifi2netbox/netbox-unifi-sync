@@ -1,7 +1,7 @@
 # Server Installation Guide
 
 Install the plugin in the same Python environment as NetBox and every worker.
-Current release: [v0.3.26](https://pypi.org/project/netbox-unifi-sync/0.3.26/).
+Current release: [v0.3.27](https://pypi.org/project/netbox-unifi-sync/0.3.27/).
 For an existing installation, use the [upgrade guide](upgrade.md).
 
 ## Prerequisites
@@ -17,7 +17,7 @@ For an existing installation, use the [upgrade guide](upgrade.md).
 For the usual `/opt/netbox` layout:
 
 ```bash
-/opt/netbox/venv/bin/python -m pip install netbox-unifi-sync==0.3.26
+/opt/netbox/venv/bin/python -m pip install netbox-unifi-sync==0.3.27
 /opt/netbox/venv/bin/python -m pip check
 ```
 

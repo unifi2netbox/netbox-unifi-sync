@@ -1,10 +1,10 @@
-# Upgrade to v0.3.26
+# Upgrade to v0.3.27
 
-[v0.3.26](https://github.com/unifi2netbox/netbox-unifi-sync/releases/tag/v0.3.26)
-is available on [PyPI](https://pypi.org/project/netbox-unifi-sync/0.3.26/).
+[v0.3.27](https://github.com/unifi2netbox/netbox-unifi-sync/releases/tag/v0.3.27)
+is available on [PyPI](https://pypi.org/project/netbox-unifi-sync/0.3.27/).
 
 1. Back up NetBox and pause sync scheduling while upgrading.
-2. Install `netbox-unifi-sync==0.3.26` in web and every worker environment, or
+2. Install `netbox-unifi-sync==0.3.27` in web and every worker environment, or
    rebuild their shared custom image. Check dependency compatibility with `pip check`.
 3. Apply pending migrations, run `manage.py check`, and restart both services.
 4. Run controller tests and dry-run, then full sync without cleanup on staging.

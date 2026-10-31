@@ -65,7 +65,7 @@ PLUGINS_CONFIG = {
 
 - Uses username/password session login
 - Requires `username_ref` + `password_ref` on the controller row
-- Optional `mfa_secret`
+- Optional `mfa_secret_ref`
 
 Note: local Integration API keys are required for Integration API mode.  
 `unifi.ui.com` cloud API keys are not drop-in compatible.
@@ -115,6 +115,13 @@ MAC address exists on that interface. Integration API field names such as
 disabled, the plugin can still discover DHCP ranges and sync IPAM data, but it
 will not push a static IP change back to UniFi.
 
+With `sync_prefixes=false`, neither network-config sync nor inferred device
+subnets create prefixes. Existing parent prefixes are still used for primary-IP
+masks; an address without a parent uses `/32` for IPv4 or `/128` for IPv6.
+The toggle does not delete prefixes already present. `sync_dhcp_ranges` is a
+separate control. Prefix creation is serialized across threads in one process;
+avoid overlapping independent worker processes.
+
 ### Identity and mapping
 
 - `tenant_name`
@@ -126,11 +133,29 @@ will not push a static IP change back to UniFi.
 - `asset_tag_uppercase`
 - `netbox_roles` JSON mapping
 
+Role keys are `WIRELESS`, `LAN`, `GATEWAY`, `ROUTER` and `UNKNOWN`. Legacy
+aliases such as `SWITCH` map to canonical keys; explicit canonical mappings win.
+Controller-specific site mappings override global rows. Controllers run in the
+same execution only when credentials and effective mappings match; otherwise
+separate executions preserve each controller's mapping.
+
 ### VRF and serial strategy
 
 - `vrf_mode`: `none` | `existing` | `create`
 - `default_vrf_name`
-- `serial_mode`: `mac` | `unifi` | `id` | `none`
+
+| `serial_mode` | Value written to NetBox's serial field |
+| --- | --- |
+| `mac` (default) | UniFi serial, otherwise MAC, otherwise UniFi ID |
+| `unifi` | UniFi serial only |
+| `id` | UniFi serial, otherwise UniFi ID |
+| `none` | No identifier; device processing is skipped because hardware matching requires one |
+
+Devices match by site and resolved serial. A different device colliding on its
+name receives a deterministic `_<serial>` suffix on creation or rename. Names
+are bounded to 64 characters; unusually long identifiers use a stable hash
+suffix. Missing or ambiguous identifiers produce a warning and skip that device.
+Changing serial strategy can change identity matching; validate it in staging.
 
 ### Reliability and concurrency
 
@@ -143,6 +168,11 @@ will not push a static IP change back to UniFi.
 - `max_site_threads`
 - `max_device_threads`
 - `rate_limit_per_second`
+
+Runtime environment overrides are serialized within one process so concurrent
+runs cannot replace each other's credentials. This does not coordinate separate
+RQ processes; schedule jobs to avoid overlap. Cleanup is skipped when credentials
+or effective site mappings require more than one execution group.
 
 Stale `running` sync runs older than the runtime reconciliation threshold are
 marked failed before new status data is shown. This prevents interrupted worker
@@ -202,8 +232,8 @@ The plugin maps UI state into these internal engine keys (for compatibility/debu
 | `SYNC_CABLES` | `sync_cables` |
 | `SYNC_STALE_CLEANUP` | `sync_stale_cleanup` |
 | `SYNC_CLIENT_IPS` | `sync_client_ips` |
-| `SYNC_PREFIXES` | Enabled internally (default `true`) |
-| `SYNC_DHCP_RANGES` | Enabled internally (default `true`) |
+| `SYNC_PREFIXES` | `sync_prefixes` (default `true`) |
+| `SYNC_DHCP_RANGES` | `sync_dhcp_ranges` (default `true`) |
 | `DHCP_AUTO_DISCOVER` | `dhcp_auto_discover` |
 | `DHCP_RANGES` | `dhcp_ranges` |
 | `DHCP_WRITEBACK_ENABLED` | `dhcp_writeback_enabled` |
@@ -266,3 +296,18 @@ history and are viewed from the plugin dashboard/run detail pages.
 - Plugin services map UI state into those keys at runtime.
 - You normally do not need to set `NETBOX_URL`/`NETBOX_TOKEN` manually in plugin mode.
 - Legacy CLI/standalone configuration is not required for normal plugin operation.
+
+## Advanced: live readings
+
+`SYNC_LIVE_READINGS` is a worker-process environment option, default `true`.
+There is currently no corresponding Settings form field. Set it to `false` in
+the environment of every process that executes sync (including management
+commands), then restart workers, to omit frequently changing uptime/last-seen,
+PoE draw, radio utilization and client AP/signal/timestamp metadata. Stable
+identity, firmware, MAC, IP and SSID information continues to sync. Existing
+custom-field values can remain unchanged; description fields may be rewritten
+without live readings. See [device specs](device-specs.md).
+
+MFA seeds and API/password/token fields are redacted from configuration snapshots.
+Restrict controller edit permissions, database backups and secret-file access;
+redaction is not encryption of stored controller values.

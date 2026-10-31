@@ -13,9 +13,16 @@ flowchart LR
     UI["Plugin UI"] --> P
 ```
 
+## Aktuel release
+
+[v0.3.26](https://github.com/unifi2netbox/netbox-unifi-sync/releases/tag/v0.3.26)
+er publiceret på [PyPI](https://pypi.org/project/netbox-unifi-sync/0.3.26/).
+Se [Upgrade](Upgrade) for udrulning, ændret sync-adfærd og staging-checks.
+
 ## Quick links
 
 - [Installation](Installation)
+- [Upgrade](Upgrade)
 - [Configuration](Configuration)
 - [Run Sync](Run-Sync)
 - [Release and PyPI](Release-and-PyPI)

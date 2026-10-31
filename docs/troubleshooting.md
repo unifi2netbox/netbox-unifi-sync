@@ -161,3 +161,72 @@ Include:
 - worker log excerpt
 
 Do not include credentials, tokens, cookies, or private secrets.
+
+## v0.3.26 Sync and Upgrade Checks
+
+### Prefixes appear with prefix sync disabled
+
+Upgrade web and worker runtimes to 0.3.26 and restart both. The prefix toggle now
+covers inferred device subnets as well as network-config sync. It does not
+remove old duplicates; inspect their VRF, scope, VLAN and relationships before
+reconciling existing data. With the toggle off, primary IPs use an existing
+parent mask or a host mask. Avoid overlapping independent worker processes.
+
+### Duplicate device names or ambiguous serial warnings
+
+The same display name can belong to different hardware. Version 0.3.26 handles
+create/rename conflicts with a serial suffix. Inspect the configured
+`serial_mode`, incoming identifier and mapped site when a device is skipped.
+Missing or multiple existing matches are skipped with a warning; do not merge
+devices merely because their names are equal.
+
+### Power ports exist but the device tab shows zero
+
+Version 0.3.26 prevents later ORM saves from overwriting signal-updated counts
+for newly created components. It does not bulk-repair old cached counters.
+Compare actual power ports with the device-type templates and follow your
+NetBox version's supported counter-repair procedure on staging first. Avoid
+creating placeholder ports as a permanent workaround.
+
+### Imported device type is not reused
+
+Check manufacturer identity (`ubiquiti`, or legacy `ubiquity`), reported model,
+part number and library slug. Normal sync prefers normalized SKU matches and
+preserves curated specs. Existing duplicate types are not automatically merged.
+See [device specs](device-specs.md) before moving devices between types.
+
+### Repeated login fails after a previously successful run
+
+Version 0.3.26 clears old session cookies/CSRF state before authenticating again.
+Confirm every worker has the upgraded package, then inspect the sanitized login
+error. Docker-container startup lines alone do not identify an authentication
+or PyPI failure; find the first error response later in the log.
+
+### Dry-run fails NetBox preflight
+
+Preflight now checks database access as well as model availability. Verify the
+plugin and pending migrations in the same runtime as the worker. Dry-run is not
+an object-change preview; run/audit history may still be written.
+
+### Cleanup requested but skipped
+
+Different controller credentials or effective site mappings require separate
+executions. Cleanup is disabled across those groups for safety; normal sync
+continues. See [cleanup](cleanup.md#authorization-execution-groups-and-limits).
+
+### PyPI rejects the attestation Build Config URI
+
+The expected Trusted Publisher workflow is `publish-python-package.yml` with
+environment `pypi`. Calling publication as a reusable workflow can give its
+attestation the caller's `release.yml` identity. Current automation runs
+publication as a standalone workflow and retains OIDC and attestations. Retry
+**Publish Python Package** on `main` with the already published release tag;
+see [release recovery](release.md#recovering-a-failed-publication).
+
+### Release is visible but pip cannot find the new version
+
+GitHub Release creation and PyPI upload are separate steps. Check the standalone
+publication run and the exact version page on PyPI before upgrading. For
+v0.3.26, publication succeeded in
+[run 41222067811](https://github.com/unifi2netbox/netbox-unifi-sync/actions/runs/41222067811).
+See [upgrade](upgrade.md) for install and restart commands.

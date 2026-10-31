@@ -50,3 +50,28 @@ dashboard/run detail pages.
 You can pre-seed defaults via `PLUGINS_CONFIG["netbox_unifi_sync"]`, but UI models are the authoritative runtime state.
 
 Reference: [docs/configuration.md](https://github.com/unifi2netbox/netbox-unifi-sync/blob/main/docs/configuration.md)
+
+## Prefixes, identity and controller isolation
+
+With `sync_prefixes=false`, normal sync creates neither configured nor inferred
+prefixes. Existing prefixes are retained; primary IPs use a parent mask or a host
+mask when none exists. DHCP-range sync has its own toggle.
+
+Controller-specific site mappings override global mappings. Controllers with
+different effective mappings execute separately even when credentials match;
+cleanup is skipped across separate execution groups.
+
+Devices match by site and resolved serial. Name collisions use a stable serial
+suffix; missing/ambiguous identifiers are logged and skipped. Canonical role
+keys are `WIRELESS`, `LAN`, `GATEWAY`, `ROUTER`, `UNKNOWN` and take precedence over
+legacy aliases.
+
+## Live readings and process limits
+
+`SYNC_LIVE_READINGS=false` in the worker environment omits supported per-poll
+readings such as uptime, PoE draw, utilization and client signal/timestamps. It
+has no Settings UI field. Restart workers after changing their environment.
+Runtime/prefix locks are process-local; avoid overlapping independent jobs.
+
+See [Upgrade](Upgrade) and the
+[full configuration reference](https://github.com/unifi2netbox/netbox-unifi-sync/blob/main/docs/configuration.md).

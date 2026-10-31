@@ -42,7 +42,7 @@ python manage.py netbox_unifi_sync_run --cleanup
 ```
 
 CLI flags:
-- `--dry-run`: run preflight only (no NetBox writes).
+- `--dry-run`: check configuration, NetBox database and controller access without synchronizing DCIM/IPAM/wireless objects; run/audit history may be written.
 - `--cleanup`: request cleanup phase in the same run.
 - `--json`: output structured JSON result (default output is one-line summary).
 
@@ -80,7 +80,7 @@ For regular NetBox users, use NetBox object permissions:
 
 Compatibility custom permissions still defined by the plugin:
 
-- `netbox_unifi_sync.run_sync` (accepted by the dashboard POST handler)
+- `netbox_unifi_sync.run_sync` (accepted by the dashboard and job enqueue boundary)
 - `netbox_unifi_sync.run_cleanup`
 - `netbox_unifi_sync.test_controller`
 
@@ -88,3 +88,15 @@ In NetBox object permissions, queueing a sync is best represented as
 `netbox_unifi_sync.add_syncrun`.
 Testing a controller is best represented as
 `netbox_unifi_sync.change_unificontroller`.
+
+Cleanup requires `netbox_unifi_sync.run_cleanup` in addition to sync queueing
+permission. The queue boundary enforces these permissions even when called
+outside the dashboard. Scheduler and management-command runs use their server
+execution context.
+
+Dry-run is not a proposed-change or deletion preview. Failed NetBox access fails
+preflight; inspect the run error and worker logs. Controller connectivity tests
+record their attempt time on success and failure.
+
+For upgrades, backups, process-overlap limits and staging checks, use the
+[upgrade guide](upgrade.md).

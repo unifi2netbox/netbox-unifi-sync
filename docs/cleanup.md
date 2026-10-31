@@ -19,11 +19,13 @@ Enable in plugin `Settings`:
 
 ### 1. Stale Devices
 
-Devices present in NetBox but **not found** in any UniFi controller are considered stale.
+Devices with a serial in the configured NetBox sites/tenant but **not found**
+in the current execution's UniFi serial set are candidates. This is broader than
+objects proven to have been created by the plugin; review the site/tenant scope.
 
-- The grace period (`cleanup_grace_days`) prevents deletion of temporarily offline devices
-- Devices must have been last updated more than N days ago
-- When a device is deleted, its interfaces, cables, and IP addresses are also removed
+- The grace period (`cleanup_grace_days`) checks the age of an available, parseable `last_updated` value
+- A recent `last_updated` value protects a candidate until the grace period expires; missing/unparseable values do not establish an age
+- Device deletion follows NetBox relationship handling; the later orphan-IP pass can delete unassigned tenant IPs
 - Default grace period: **30 days**
 
 ### 2. Garbage Interfaces
@@ -49,7 +51,7 @@ Ubiquiti device types with `device_count == 0` are deleted. Before deletion, all
 ### Before Enabling
 
 1. **Test in staging first** — clone your NetBox database and test cleanup there
-2. **Start with a high grace period** — set `cleanup_grace_days=9999` to see what would be affected without actually deleting recent devices
+2. **Review scope** — the grace period applies to stale devices only. Increasing it is not a dry-run and does not protect orphan interfaces, IPs, cables or unused device types.
 3. **Review logs** — every deletion is logged at INFO level with the device name and serial
 4. **Back up NetBox** — ensure you have a recent database backup
 
@@ -96,3 +98,23 @@ A second run should report 0 deletions if cleanup was complete.
 ## Disabling Cleanup
 
 Set `cleanup_enabled=false` (default is disabled).
+
+## Authorization, Execution Groups and Limits
+
+Request cleanup using the dashboard checkbox or `--cleanup`. Scheduled runs use
+`cleanup_enabled`. Queueing cleanup through the UI/job boundary requires both a
+sync permission and `netbox_unifi_sync.run_cleanup`.
+
+Controllers are grouped by credentials and effective site mappings. If multiple
+groups are needed, cleanup is skipped for the run so another group's devices
+are not mistaken for stale objects. Normal sync continues and the reason is
+logged. Inspect `cleanup_requested` and `cleanup_effective` in run details.
+
+The grace period uses `last_updated` as a proxy, not a confirmed offline-since
+timestamp. The grace check cannot establish age when the timestamp is absent or
+unparseable. Cleanup also includes tenant-wide orphan IPs and manufacturer-wide
+unused device types, so it is not restricted to the last device synced.
+
+`--dry-run --cleanup` performs preflight only; it does not list proposed
+cleanup deletions. Validate cleanup on a staging database copy and keep a backup.
+See the [upgrade guide](upgrade.md) for safe rollout and process-overlap limits.

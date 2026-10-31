@@ -99,6 +99,7 @@ source .venv/bin/activate
 python -m pip install --upgrade pip
 pip install -r requirements.txt
 pip install -e .
+pip install pytest ruff bandit pip-audit build twine
 ```
 
 4. Run the checks before opening a PR:
@@ -117,12 +118,8 @@ bandit -r netbox_unifi_sync/ -ll
 
 ## Local validation setup
 
-For plugin validation against a running NetBox stack, use the included Docker setup:
-
-```bash
-cp deploy/netbox-docker/configuration/plugins.py .netbox-docker/configuration/plugins.py
-# or follow the full instructions in deploy/netbox-docker/README.md
-```
+For plugin validation against a running NetBox stack, follow the complete
+[custom-image or editable-mount setup](deploy/netbox-docker/README.md).
 
 The full local test setup is documented in:
 
@@ -167,3 +164,30 @@ Before opening a PR, confirm:
 Use the repository's issue tracker or discussions for questions. For architectural or larger changes, open an issue first so the work can be aligned before a large PR is created.
 
 This project is a hobby project maintained in spare time, so response times may vary. However, the repository should be straightforward enough for contributors to work independently with the guidance above.
+
+## Documentation and release validation
+
+Keep README, `docs/`, deployment instructions and the `wiki/` source pages in
+sync with user-visible changes. Link to the canonical configuration, upgrade
+and release guides rather than duplicating entire procedures. `wiki/README.md`
+explains publication to the separate GitHub Wiki repository; updating source
+pages alone does not publish the live Wiki.
+
+CI checks Python 3.11/3.12 tests, Ruff, Bandit, dependency audit, package build and
+metadata. Use the same commands locally for code/release changes:
+
+```bash
+ruff check netbox_unifi_sync/
+pytest -q
+bandit -r netbox_unifi_sync/ -ll
+pip-audit -r requirements.txt
+python -m build
+twine check dist/*
+```
+
+For documentation-only changes, check relative links, anchors, code examples,
+Markdown fences and `git diff --check`; no new implementation tests are required.
+For workflow changes, also run `actionlint`. Use the
+[staging checklist](docs/qa-checklist.md) for live integration work and the
+[release guide](docs/release.md) for versioning, OIDC and attestations.
+Do not move published tags or republish changed artifacts under an existing version.

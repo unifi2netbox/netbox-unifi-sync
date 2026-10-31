@@ -115,6 +115,15 @@ flowchart TD
 
 ---
 
+## Current release
+
+[v0.3.26](https://github.com/unifi2netbox/netbox-unifi-sync/releases/tag/v0.3.26)
+is available on [PyPI](https://pypi.org/project/netbox-unifi-sync/0.3.26/).
+It fixes disabled-prefix sync, duplicate device names, power-port counters and
+library device-type matching. It also improves credential/mapping isolation,
+authorization and dependency security. See the [upgrade guide](docs/upgrade.md)
+and [changelog](CHANGELOG.md).
+
 ## Features
 
 - Device sync (devices, interfaces, VLANs, prefixes, WLANs, uplink relations, IP assignments)
@@ -144,11 +153,9 @@ pip install netbox-unifi-sync
 PyPI project page:
 https://pypi.org/project/netbox-unifi-sync/
 
-For `netbox-docker`, add the package to `local_requirements.txt` before build:
-
-```bash
-echo "netbox-unifi-sync" >> local_requirements.txt
-```
+For `netbox-docker`, build a custom image containing the plugin and use it for
+both the web service and worker. A requirements file alone does not change the
+stock image. Follow the [Docker setup](deploy/netbox-docker/README.md).
 
 > [!IMPORTANT]
 > The plugin must be installed in the same environment as both NetBox and the worker container.
@@ -211,7 +218,9 @@ python manage.py netbox_unifi_sync_run --cleanup
 ```
 
 > [!IMPORTANT]
-> Always run the first execution with --dry-run to verify intended changes before writing to NetBox.
+> Run `--dry-run` first to check configuration, NetBox database access and
+> controller authentication. It is a preflight, not a proposed-object diff.
+> Run/audit history and controller session state may still be recorded.
 
 > [!CAUTION]
 > The --cleanup flag removes objects in NetBox that no longer exist in UniFi.
@@ -258,13 +267,17 @@ For normal NetBox users, grant permissions through NetBox object permissions:
 - View audit log: `view` on `netbox_unifi_sync.PluginAuditEvent`
 
 The legacy custom permission `netbox_unifi_sync.run_sync` is still accepted by
-the view for compatibility, but NetBox object permissions map naturally to
+the UI and job enqueue boundary for compatibility, but NetBox object permissions map naturally to
 `netbox_unifi_sync.add_syncrun`.
 The legacy custom permission `netbox_unifi_sync.test_controller` is also
 accepted, but NetBox object permissions map naturally to
 `netbox_unifi_sync.change_unificontroller`.
 
 ---
+
+Cleanup additionally requires `netbox_unifi_sync.run_cleanup`, together with
+the permission to queue a sync. Requests through the management command and
+scheduler run in their administrative/server context.
 
 ## Security Notes
 
@@ -280,6 +293,7 @@ accepted, but NetBox object permissions map naturally to
 
 ## Documentation
 
+- [Upgrade to v0.3.26](docs/upgrade.md)
 - [Server install guide](docs/server-install.md)
 - [NetBox plugin mode](docs/netbox-plugin.md)
 - [Configuration reference](docs/configuration.md)
@@ -303,13 +317,16 @@ accepted, but NetBox object permissions map naturally to
    - manually with git:
    - `git tag -a vX.Y.Z -m "Release vX.Y.Z"`
    - `git push origin vX.Y.Z`
-4. `release.yml` runs on the tag push, gates on lint/tests, and creates the GitHub Release.
-5. `publish-python-package.yml` runs on `release: published` and publishes to PyPI (can also be run manually for retry).
+4. `release.yml` checks lint, security/dependencies, Python 3.11/3.12 tests,
+   package build and all three version files before creating the GitHub Release.
+5. The standalone `publish-python-package.yml` verifies the completed tag-push
+   release through `workflow_run`, then publishes with OIDC and attestations.
+   The manual tag workflow calls the release checks and dispatches publication
+   explicitly. Manual publication remains available for retries.
 
-> [!NOTE]
-> GitHub releases created by `release.yml` use `GITHUB_TOKEN`. If GitHub does not
-> emit a follow-up `release: published` workflow event, run **Publish Python Package**
-> manually from Actions with the same tag.
+See the [release guide](docs/release.md) for the exact Trusted Publisher identity,
+recovery steps and verification. GitHub Release and PyPI upload are separate
+results: verify both.
 
 > [!CAUTION]
 > Version mismatch between pyproject.toml, version.py, and netbox-plugin.yaml will break the release pipeline.

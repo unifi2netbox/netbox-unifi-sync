@@ -35,10 +35,10 @@ def validate_runtime_config(
 
     if cleanup_requested and len(runtime_groups) > 1:
         logger.warning(
-            "Cleanup skipped this run: %d controller credential groups detected. "
-            "Stale cleanup requires a single shared credential set across all controllers "
+            "Cleanup skipped this run: %d controller execution groups detected. "
+            "Stale cleanup requires shared credentials and site mappings across all controllers "
             "(running cleanup per group risks deleting devices that belong to other groups). "
-            "To enable cleanup: use the same credentials for all controllers, or run with "
+            "To enable cleanup: use the same credentials and mappings for all controllers, or run with "
             "a single controller selected.",
             len(runtime_groups),
         )

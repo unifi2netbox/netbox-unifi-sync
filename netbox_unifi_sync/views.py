@@ -263,8 +263,9 @@ def controller_test_view(request: HttpRequest, pk: int) -> HttpResponse:
         safe = sanitize_error(str(exc))
         controller.last_test_status = "error"
         controller.last_test_error = safe
+        controller.last_tested = timezone.now()
         controller.save(
-            update_fields=["last_test_status", "last_test_error", "last_updated"]
+            update_fields=["last_test_status", "last_test_error", "last_tested"]
         )
         messages.error(request, f"Controller test failed: {safe}")
         record_event(

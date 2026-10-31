@@ -22,8 +22,8 @@ git tag -a vX.Y.Z -m "Release vX.Y.Z"
 git push origin vX.Y.Z
 ```
 
-4. `release.yml` runs on the tag push, gates on lint/tests, and creates the GitHub Release.
-5. `publish-python-package.yml` runs on `release: published` and publishes to PyPI (can also be run manually for retry).
+4. `release.yml` runs on a user-pushed tag, gates on lint/tests, and creates the GitHub Release. The manual tag workflow calls it directly.
+5. The release workflow calls `publish-python-package.yml` directly to publish to PyPI (it can also be run manually for retry).
 
 ## One-Time Setup
 
@@ -43,7 +43,7 @@ https://docs.github.com/actions/deployment/security-hardening-your-deployments/a
 
 ## Versioning Rules
 
-Keep versions aligned in both files:
+Keep versions aligned in all three files:
 
 - `pyproject.toml` -> `[project].version`
 - `netbox_unifi_sync/version.py` -> `__version__`
@@ -59,13 +59,14 @@ Configured workflows:
   - runs only on manual dispatch
   - creates and pushes an annotated tag (`vX.Y.Z`)
   - can validate version consistency in `pyproject.toml`, `version.py`, and `netbox-plugin.yaml`
-  - triggers `release.yml` automatically via tag push
+  - calls the reusable `release.yml` workflow after creating the tag
 - `release.yml`:
-  - runs on push of tags matching `v*`
+  - runs on push of tags matching `v*`, or as a reusable workflow
   - runs lint + tests first
   - creates GitHub Release
+  - calls the reusable publish workflow after release creation
 - `publish-python-package.yml`:
-  - runs automatically on `release: published`
+  - runs automatically when called by the release workflow
   - can also be run manually (`workflow_dispatch`) for retry
   - uses environment `pypi`
   - uses GitHub OIDC (`id-token: write`)
@@ -81,15 +82,14 @@ Configured workflows:
    - `version`: `0.3.19` (or `v0.3.19`)
    - `ref`: `main` (or a specific commit SHA)
    - `verify_version_files`: `true` (recommended)
-4. The workflow creates/pushes `vX.Y.Z`, which triggers `release.yml`.
+4. The workflow creates/pushes `vX.Y.Z`, then calls `release.yml`.
 5. `release.yml` runs lint/tests and creates the GitHub Release.
-6. Publishing that release triggers `publish-python-package.yml`, which publishes to PyPI.
+6. The release workflow calls `publish-python-package.yml`, which publishes to PyPI.
 
-GitHub releases created by `release.yml` use the repository `GITHUB_TOKEN`.
-Depending on GitHub event propagation rules, the generated `release: published`
-event might not start `publish-python-package.yml`. If no publish run appears
-after the release is created, run **Publish Python Package** manually from
-Actions with the same tag.
+The workflows call each other explicitly because events created with the
+repository `GITHUB_TOKEN` do not start other workflows. This applies both to a
+manually generated tag and to the GitHub Release. Manual publication remains
+available to retry a failed PyPI upload with the same tag.
 
 ## Recommended CLI Commands (alternative)
 

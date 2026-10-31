@@ -68,13 +68,21 @@ Main thread-safe structures in `netbox_unifi_sync/services/sync_engine.py`:
 - `_cleanup_serials_by_site`
 - `_unifi_dhcp_ranges`
 - `postable_fields_cache`
+- a shared prefix creation lock across site and device workers
+
+Runtime environment changes are serialized across sync invocations within the
+same process. Controller groups with different site mappings execute separately;
+stale cleanup is disabled when more than one group is needed, to avoid treating
+another group's devices as stale. These locks do not coordinate separate worker
+processes.
 
 ## Sync Flow (high-level)
 
 1. Load runtime config from plugin models (`Settings`, `Controllers`, `Site mappings`)
 2. Merge optional non-secret bootstrap defaults from `PLUGINS_CONFIG["netbox_unifi_sync"]`
 3. Resolve NetBox tenant/roles/sites
-4. Process all configured UniFi controllers in parallel
+4. Group controllers by credentials and effective site mappings, then process
+   each compatible group (controllers within a group run in parallel)
 5. Per site:
    - sync devices
    - sync interfaces/VLANs/WLANs/cables (feature toggles)

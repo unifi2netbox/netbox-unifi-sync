@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+import threading
 from contextlib import contextmanager
 from typing import Any
 
@@ -21,7 +22,11 @@ _SECRET_FIELDS = {
     "password",
     "unifi_api_key",
     "unifi_password",
+    "unifi_mfa_secret",
+    "netbox_token",
 }
+
+_runtime_env_lock = threading.RLock()
 
 DEFAULT_SETTINGS: dict[str, Any] = {
     "auth_mode": "api_key",
@@ -488,15 +493,18 @@ def get_sync_interval_minutes(plugin_settings: dict[str, Any] | None = None) -> 
 
 @contextmanager
 def patched_environ(values: dict[str, str]):
-    original: dict[str, str | None] = {}
-    for key, value in values.items():
-        original[key] = os.environ.get(key)
-        os.environ[key] = value
-    try:
-        yield
-    finally:
-        for key, old_value in original.items():
-            if old_value is None:
-                os.environ.pop(key, None)
-            else:
-                os.environ[key] = old_value
+    # Sync workers read process-wide settings and credentials. A second run
+    # must not replace them while the first run is still using them.
+    with _runtime_env_lock:
+        original: dict[str, str | None] = {}
+        try:
+            for key, value in values.items():
+                original[key] = os.environ.get(key)
+                os.environ[key] = value
+            yield
+        finally:
+            for key, old_value in original.items():
+                if old_value is None:
+                    os.environ.pop(key, None)
+                else:
+                    os.environ[key] = old_value

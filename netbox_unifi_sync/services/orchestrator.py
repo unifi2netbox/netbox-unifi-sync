@@ -51,7 +51,7 @@ def _migrate_role_keys(roles: dict[str, str]) -> tuple[dict[str, str], bool]:
         canonical = _ROLE_KEY_ALIASES.get(key, key)
         if canonical != key:
             changed = True
-        if canonical not in result:
+        if canonical not in result or key == canonical:
             result[canonical] = value
         else:
             # Canonical already present — alias is a duplicate and gets dropped.
@@ -292,7 +292,10 @@ def run_sync(*, dry_run: bool, cleanup_requested: bool, requested_by_id: int | N
     grouped: dict[tuple[str, ...], list[dict[str, Any]]] = defaultdict(list)
     for controller in controllers:
         runtime = to_controller_runtime(controller, defaults)
-        sig = auth_signature(runtime)
+        # The engine receives one mapping dictionary per execution. Controllers
+        # with different scoped mappings cannot safely share that execution.
+        controller_mappings = _collect_site_mappings([controller])
+        sig = (*auth_signature(runtime), repr(sorted(controller_mappings.items())))
         grouped[sig].append({"controller": controller, "runtime": runtime})
 
     effective_cleanup = _validate_runtime_config(settings, grouped, cleanup_requested)

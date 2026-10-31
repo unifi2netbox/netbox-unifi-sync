@@ -55,8 +55,9 @@ def _preflight_netbox(plugin_settings: dict[str, Any]) -> dict[str, Any]:
         netbox_version = None
 
     try:
-        from dcim.models import Site  # noqa: F401 — import-only connectivity check
+        from dcim.models import Site
 
+        Site.objects.exists()
         orm_ok = True
     except Exception:
         orm_ok = False
@@ -123,6 +124,8 @@ def _preflight_unifi(plugin_settings: dict[str, Any]) -> list[dict[str, Any]]:
 
 def _run_preflight(plugin_settings: dict[str, Any]) -> dict[str, Any]:
     netbox_check = _preflight_netbox(plugin_settings)
+    if netbox_check.get("status") != "ok":
+        raise RuntimeError("NetBox preflight failed: models or database unavailable.")
     unifi_checks = _preflight_unifi(plugin_settings)
     failures = [item for item in unifi_checks if item.get("status") != "ok"]
     if failures:

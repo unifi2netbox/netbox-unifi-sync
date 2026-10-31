@@ -26,6 +26,8 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+    outputs:
+      tag: ${{ steps.version.outputs.tag }}
 
     steps:
       - uses: actions/checkout@v6
@@ -35,11 +37,13 @@ jobs:
 
       - name: Normalize and validate version input
         id: version
+        env:
+          INPUT_VERSION: ${{ inputs.version }}
         shell: bash
         run: |
           set -euo pipefail
 
-          raw="${{ inputs.version }}"
+          raw="$INPUT_VERSION"
           raw="${raw//[[:space:]]/}"
 
           if [[ -z "$raw" ]]; then
@@ -119,6 +123,15 @@ jobs:
           {
             echo "Created and pushed tag: \`$tag\`"
             echo ""
-            echo "This triggers \`release.yml\` (lint, tests, GitHub Release)."
-            echo "After the release is published, \`publish-python-package.yml\` publishes to PyPI."
+            echo "The next job calls \`release.yml\` (lint, tests, GitHub Release, PyPI)."
           } >> "$GITHUB_STEP_SUMMARY"
+
+  release:
+    needs: create_tag
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
+    uses: ./.github/workflows/release.yml
+    with:
+      tag: ${{ needs.create_tag.outputs.tag }}

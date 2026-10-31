@@ -21,13 +21,16 @@ jobs:
           cache: pip
 
       - name: Install lint tools
-        run: pip install ruff bandit
+        run: pip install ruff bandit pip-audit
 
       - name: Lint (ruff)
         run: ruff check netbox_unifi_sync/
 
       - name: Security scan (bandit)
         run: bandit -r netbox_unifi_sync/ -ll
+
+      - name: Audit runtime dependencies
+        run: pip-audit -r requirements.txt
 
   test:
     runs-on: ubuntu-latest

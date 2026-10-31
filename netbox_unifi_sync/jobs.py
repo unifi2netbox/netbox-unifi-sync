@@ -19,7 +19,7 @@ from .services.orchestrator import (
     run_sync,
     scheduler_due,
 )
-from .services.permissions import can_run_cleanup
+from .services.permissions import can_queue_sync, can_run_cleanup
 
 logger = logging.getLogger("netbox.plugins.netbox_unifi_sync.jobs")
 
@@ -124,6 +124,10 @@ class UnifiSyncJob(JobRunner):
 
     @classmethod
     def enqueue_sync(cls, *, user=None, dry_run: bool = False, cleanup_requested: bool = False, trigger: str = "manual-ui"):
+        if not can_queue_sync(user):
+            raise PermissionDenied(
+                "Missing permission: netbox_unifi_sync.run_sync or netbox_unifi_sync.add_syncrun"
+            )
         if cleanup_requested and not can_run_cleanup(user):
             raise PermissionDenied(
                 "Missing permission: netbox_unifi_sync.run_cleanup"

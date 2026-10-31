@@ -19,7 +19,7 @@ All notable changes to this project are documented in this file.
   explicitly instead of relying on events emitted by `GITHUB_TOKEN`.
 - Include upstream fixes for NetBox change logging, legacy client listing,
   cached session reauthentication, switch role detection, device type mappings,
-  and optional live readings.
+  optional live readings, and ORM foreign-key column assignment.
 
 - Honor disabled prefix sync for inferred device subnets, retain primary IP
   assignment with a host mask when no parent exists, and serialize prefix

@@ -48,7 +48,8 @@ were not available locally; this is not a claim of full production validation.
 
 Upstream changes retained include thread request-context propagation, snapshots
 before mutations, connected-client listing via `stat/sta`, cached-cookie clearing
-before login, legacy switch roles, curated device types, and optional live readings.
+before login, legacy switch roles, curated device types, optional live readings,
+and writes to concrete foreign-key column attributes.
 No unrelated data was removed and no historical migration was rewritten.
 
 ## Changed files
@@ -82,7 +83,7 @@ Commands used the prepared Python 3.12 virtual environment unless noted.
 
 | Command/check | Result |
 | --- | --- |
-| `pytest -q` | 237 passed, 1 skipped (pre-existing live-NetBox placeholder). |
+| `pytest -q` | 241 passed, 1 skipped (pre-existing live-NetBox placeholder). |
 | `ruff check netbox_unifi_sync/ tests/test_issue_regressions.py tests/test_review_regressions.py` | Passed after fixing the upstream import placement. |
 | `bandit -r netbox_unifi_sync/ -ll` | Passed: no medium/high findings. Existing suppression-comment warnings remain. |
 | `pip-audit -r requirements.txt` | Initially found urllib3 advisories; passed after the targeted dependency update. |
@@ -90,6 +91,7 @@ Commands used the prepared Python 3.12 virtual environment unless noted.
 | `actionlint` 1.7.12 | All four workflows passed. |
 | `python -m build --no-isolation` | Wheel and sdist built; the initial missing setuptools backend was installed in the build environment. |
 | `twine check` on both 0.3.26 artifacts | Passed. |
+| Clean-environment wheel install and sync engine import | Passed at version 0.3.26. |
 | `git diff --check` | Passed. |
 | Isolated Django 5.2/SQLite ORM transaction exercise | Passed create and rename uniqueness recovery inside an outer transaction, plus preservation of component counters on subsequent save. |
 

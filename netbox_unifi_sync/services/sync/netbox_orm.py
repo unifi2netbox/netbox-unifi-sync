@@ -194,7 +194,15 @@ class _OrmObject:
             and getattr(model_field, "many_to_one", False)
             and isinstance(value, int)
         ):
-            setattr(instance, f"{name}_id", value)
+            # get_field() resolves both "role" and "role_id" to the same
+            # ForeignKey.  For a concrete FK write its column attribute
+            # ("role_id"), never "role_id_id".  GenericForeignKey is also
+            # many_to_one but has no column (and, before Django 5.1, no
+            # attname), so it keeps the historical "<name>_id" path.
+            if getattr(model_field, "concrete", False):
+                setattr(instance, model_field.attname, value)
+            else:
+                setattr(instance, f"{name}_id", value)
             return
         if name in _OrmObject._CONTENT_TYPE_FIELDS and isinstance(value, str) and "." in value:
             # Convert "app_label.model_name" string → ContentType instance

@@ -130,3 +130,72 @@ def test_save_without_changes_still_snapshots():
     _OrmObject(instance).save()
 
     assert instance.saved == [({"name": "old"}, {"name": "old"})]
+
+
+def _device_with_role_fk():
+    class ForeignKey:
+        many_to_one = True
+        many_to_many = False
+        concrete = True
+        attname = "role_id"
+
+    class Meta:
+        def get_field(self, name):
+            # Django's get_field() resolves both the field name and its attname.
+            if name in ("role", "role_id"):
+                return ForeignKey()
+            raise LookupError(name)
+
+    return type("Device", (), {"_meta": Meta(), "role_id": 1})()
+
+
+def test_setting_fk_attname_with_int_writes_the_column():
+    instance = _device_with_role_fk()
+    _OrmObject(instance).role_id = 7
+
+    assert instance.role_id == 7
+    assert not hasattr(instance, "role_id_id")
+
+
+def test_setting_fk_name_with_int_writes_the_column():
+    instance = _device_with_role_fk()
+    _OrmObject(instance).role = 9
+
+    assert instance.role_id == 9
+
+
+def _ip_with_generic_fk(**field_attrs):
+    class GenericForeignKey:
+        # GenericForeignKey reports many_to_one but has no DB column.  Before
+        # Django 5.1 it is not a Field and has no attname at all; from 5.1 on
+        # its attname equals its name.  Either way the PK goes to "<name>_id".
+        many_to_one = True
+        many_to_many = False
+        concrete = False
+
+    for key, value in field_attrs.items():
+        setattr(GenericForeignKey, key, value)
+
+    class Meta:
+        def get_field(self, name):
+            if name == "assigned_object":
+                return GenericForeignKey()
+            raise LookupError(name)
+
+    return type("IPAddress", (), {"_meta": Meta(), "assigned_object_id": None})()
+
+
+def test_setting_generic_fk_with_int_writes_object_id_without_attname():
+    instance = _ip_with_generic_fk()
+    _OrmObject(instance).assigned_object = 3
+
+    assert instance.assigned_object_id == 3
+
+
+def test_setting_generic_fk_with_int_writes_object_id_with_attname():
+    instance = _ip_with_generic_fk(attname="assigned_object")
+    _OrmObject(instance).assigned_object = 4
+
+    assert instance.assigned_object_id == 4
+    # The GFK descriptor itself must not have been written with the int.
+    assert not hasattr(instance, "assigned_object")

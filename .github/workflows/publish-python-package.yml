@@ -1,15 +1,13 @@
 name: Publish Python Package
 
 on:
-  workflow_call:
-    inputs:
-      tag:
-        required: true
-        type: string
+  workflow_run:
+    workflows: ["Release"]
+    types: [completed]
   workflow_dispatch:
     inputs:
       tag:
-        description: "Release tag to publish (e.g. v0.3.20). Required for manual runs."
+        description: "Release tag to publish (e.g. v0.3.26). Required for manual runs."
         required: true
         type: string
       skip_existing:
@@ -22,11 +20,77 @@ env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
 
 concurrency:
-  group: pypi-${{ inputs.tag }}
+  group: pypi-${{ inputs.tag || github.event.workflow_run.head_branch }}
   cancel-in-progress: false
 
 jobs:
+  resolve:
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+    outputs:
+      tag: ${{ steps.tag.outputs.tag }}
+      publish: ${{ steps.tag.outputs.publish }}
+    steps:
+      - name: Resolve and verify published release
+        id: tag
+        env:
+          GH_TOKEN: ${{ github.token }}
+          INPUT_TAG: ${{ inputs.tag || github.event.workflow_run.head_branch }}
+          SOURCE_RUN_ID: ${{ github.event.workflow_run.id }}
+          SOURCE_SHA: ${{ github.event.workflow_run.head_sha }}
+          SOURCE_EVENT: ${{ github.event.workflow_run.event }}
+          SOURCE_REPOSITORY: ${{ github.event.workflow_run.head_repository.full_name }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "publish=false" >> "$GITHUB_OUTPUT"
+          raw="${INPUT_TAG//[[:space:]]/}"
+          tag="v${raw#v}"
+          if [[ ! "$tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+([-.+][0-9A-Za-z.-]+)*$ ]]; then
+            echo "Invalid release tag." >&2
+            exit 1
+          fi
+
+          if [[ -n "$SOURCE_RUN_ID" ]]; then
+            # workflow_run is privileged: accept only our tag-push release
+            # pipeline, and require its quality-gated release job to succeed.
+            if [[ "$SOURCE_REPOSITORY" != "$GITHUB_REPOSITORY" || "$SOURCE_EVENT" != "push" ]]; then
+              echo "Source is not a release tag push from this repository."
+              exit 0
+            fi
+            released="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$SOURCE_RUN_ID/jobs?filter=all&per_page=100" \
+              --jq '.jobs[] | select(.name == "release" and .conclusion == "success") | .id')"
+            if [[ -z "$released" ]]; then
+              echo "Release job did not succeed; nothing to publish."
+              exit 0
+            fi
+            # A rerun of an older release may have a failed nested publisher,
+            # even though its checks and release succeeded. Recover it here
+            # using this top-level workflow's Trusted Publisher identity.
+            read -r object_type object_sha <<< "$(gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$tag" \
+              --jq '[.object.type, .object.sha] | @tsv')"
+            if [[ "$object_type" == "tag" ]]; then
+              object_sha="$(gh api "repos/$GITHUB_REPOSITORY/git/tags/$object_sha" --jq '.object.sha')"
+            fi
+            if [[ "$object_sha" != "$SOURCE_SHA" ]]; then
+              echo "Release tag no longer matches the validated source commit." >&2
+              exit 1
+            fi
+          fi
+
+          draft="$(gh release view "$tag" --repo "$GITHUB_REPOSITORY" --json isDraft --jq '.isDraft')"
+          if [[ "$draft" != "false" ]]; then
+            echo "GitHub Release must be published before uploading to PyPI." >&2
+            exit 1
+          fi
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "publish=true" >> "$GITHUB_OUTPUT"
+
   deploy:
+    needs: resolve
+    if: needs.resolve.outputs.publish == 'true'
     runs-on: ubuntu-latest
     environment:
       name: pypi
@@ -36,33 +100,9 @@ jobs:
       attestations: write
 
     steps:
-      - name: Resolve release tag
-        id: tag
-        env:
-          INPUT_TAG: ${{ inputs.tag }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          raw="$INPUT_TAG"
-          raw="${raw//[[:space:]]/}"
-          if [[ -z "$raw" ]]; then
-            echo "Input 'tag' is required for manual runs." >&2
-            exit 1
-          fi
-          if [[ "$raw" =~ ^v ]]; then
-            tag="$raw"
-          else
-            tag="v$raw"
-          fi
-          if [[ ! "$tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+([-.+][0-9A-Za-z.-]+)*$ ]]; then
-            echo "Invalid release tag." >&2
-            exit 1
-          fi
-          echo "tag=$tag" >> "$GITHUB_OUTPUT"
-
       - uses: actions/checkout@v6
         with:
-          ref: ${{ steps.tag.outputs.tag }}
+          ref: ${{ needs.resolve.outputs.tag }}
 
       - uses: actions/setup-python@v6
         with:

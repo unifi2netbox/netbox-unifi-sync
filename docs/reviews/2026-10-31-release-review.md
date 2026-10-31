@@ -123,3 +123,14 @@ Git transport used the managed environment's supported network permissions.
 
 Next verification step: install 0.3.26 in staging, run each original issue's
 reproduction, then repeat the sync to confirm idempotency and component visibility.
+
+## Publication follow-up
+
+PR #28 was merged and tag v0.3.26 and its GitHub Release were published. Both
+Python test jobs, lint/audit and package build passed remotely. The initial
+nested PyPI publication was rejected because the attestation's Build Config URI
+named the calling release workflow instead of the configured Trusted Publisher.
+The follow-up runs publication as a standalone workflow, retains OIDC and
+attestations, and verifies successful release creation and the tag's commit
+before uploading. Manual tag creation dispatches this standalone workflow;
+tag-push releases use workflow_run completion. Existing release tags are not moved.

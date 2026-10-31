@@ -156,13 +156,3 @@ jobs:
             cmd+=(--prerelease)
           fi
           "${cmd[@]}"
-
-  publish:
-    needs: release
-    permissions:
-      contents: read
-      id-token: write
-      attestations: write
-    uses: ./.github/workflows/publish-python-package.yml
-    with:
-      tag: ${{ needs.release.outputs.tag }}

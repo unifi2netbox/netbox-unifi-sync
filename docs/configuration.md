@@ -98,6 +98,11 @@ matching NetBox `dcim.Interface` or `virtualization.VMInterface` when the client
 MAC address exists on that interface. Integration API field names such as
 `macAddress`, `ipAddress`, `connectedAt`, and `lastSeenAt` are supported.
 
+Each run also deletes a synced client IP that is assigned to an interface when
+its MAC is no longer active or is now reported at a different address (UniFi
+reports one address per MAC). This runs whether or not stale cleanup is
+enabled. An address that is a device's primary or out-of-band IP is kept.
+
 ### IPAM and DHCP
 
 - `dhcp_auto_discover`

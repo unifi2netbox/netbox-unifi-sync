@@ -4,6 +4,13 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+### Fixed
+
+- Client-IP cleanup no longer deletes an address that is a device's primary or
+  out-of-band IP. A host holding a second address (such as a floating VIP) is
+  reported by UniFi at one or the other, and the cleanup deleted the address
+  the device was identified by, clearing its primary IP.
+
 ## [0.3.27] - 2026-10-31
 
 ### Fixed

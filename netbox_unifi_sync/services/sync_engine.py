@@ -1481,6 +1481,23 @@ def _create_or_get_interface(nb, payload):
     raise create_error
 
 
+def _is_device_identity_ip(nb_ip, device):
+    """Whether ``nb_ip`` is ``device``'s primary IPv4/IPv6 or out-of-band IP.
+
+    UniFi reports one address per client MAC. A host that holds a second
+    address (a floating VIP, for example) is reported at one or the other, so
+    the client-IP cleanup would delete the address the device is identified
+    by, which also clears the device's primary IP. Those are kept.
+    """
+    if device is None or getattr(nb_ip, "pk", None) is None:
+        return False
+    return nb_ip.pk in {
+        getattr(device, "primary_ip4_id", None),
+        getattr(device, "primary_ip6_id", None),
+        getattr(device, "oob_ip_id", None),
+    } - {None}
+
+
 def sync_client_ips(nb, site_obj, nb_site, tenant):
     """Sync UniFi client IP addresses to NetBox IPAM.
 
@@ -1648,6 +1665,11 @@ def sync_client_ips(nb, site_obj, nb_site, tenant):
             if stored_mac and stored_mac in active_clients:
                 if active_clients[stored_mac]["ip"] == ip_plain:
                     continue  # still valid
+
+            # Keep an address the device uses as its primary or OOB IP
+            if _is_device_identity_ip(nb_ip, iface.device):
+                logger.debug(f"Keeping client IP {nb_ip.address}: it is a primary or OOB IP of {iface.device}")
+                continue
 
             try:
                 nb_ip.delete()

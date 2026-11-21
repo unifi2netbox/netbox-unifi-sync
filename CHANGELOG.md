@@ -4,6 +4,14 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+### Fixed
+
+- Release each sync worker thread's Django database connections when its task
+  ends. With Django's connection pool enabled (the default in netbox-docker
+  5.1.2), worker threads kept their connections, the pool ran dry, lookups timed
+  out after 30 s and were reported as not found, and a sync took minutes
+  (#35).
+
 ## [0.3.27] - 2026-10-31
 
 ### Fixed

@@ -50,3 +50,48 @@ def test_submit_with_context_passes_args_and_kwargs():
 
     with ThreadPoolExecutor(max_workers=1) as executor:
         assert sync_engine._submit_with_context(executor, add, 2, b=3).result() == 5
+
+
+def test_submit_with_context_releases_db_connections_in_worker(monkeypatch):
+    # Worker threads must hand their Django connections back when a task ends,
+    # or a connection pool runs dry (issue #35).
+    import threading
+
+    closed_in = []
+    monkeypatch.setattr(
+        sync_engine, "_close_thread_db_connections", lambda: closed_in.append(threading.get_ident())
+    )
+
+    def work():
+        return threading.get_ident()
+
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        futures = [sync_engine._submit_with_context(executor, work) for _ in range(6)]
+        worker_ids = [f.result() for f in futures]
+
+    assert sorted(closed_in) == sorted(worker_ids)
+    assert threading.get_ident() not in closed_in
+
+
+def test_submit_with_context_releases_db_connections_when_task_fails(monkeypatch):
+    closed = []
+    monkeypatch.setattr(sync_engine, "_close_thread_db_connections", lambda: closed.append(True))
+
+    def boom():
+        raise ValueError("task failed")
+
+    with ThreadPoolExecutor(max_workers=1) as executor:
+        future = sync_engine._submit_with_context(executor, boom)
+        try:
+            future.result()
+        except ValueError:
+            pass
+        else:
+            raise AssertionError("expected the task's exception")
+
+    assert closed == [True]
+
+
+def test_close_thread_db_connections_tolerates_unconfigured_django():
+    # Unit tests import the engine without Django settings.
+    sync_engine._close_thread_db_connections()

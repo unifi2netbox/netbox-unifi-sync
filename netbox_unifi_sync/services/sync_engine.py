@@ -72,9 +72,42 @@ def _submit_with_context(executor, fn, *args, **kwargs):
     is set. Worker threads start with an empty context, so objects saved in
     them were never change-logged. Each task gets its own copy of the
     submitting thread's context (a Context cannot be entered by two threads).
+
+    The task also releases the worker thread's database connections when it
+    ends; see ``_run_and_release_db_connections``.
     """
     ctx = contextvars.copy_context()
-    return executor.submit(ctx.run, fn, *args, **kwargs)
+    return executor.submit(ctx.run, _run_and_release_db_connections, fn, *args, **kwargs)
+
+
+def _run_and_release_db_connections(fn, *args, **kwargs):
+    """Run ``fn`` and close this thread's Django connections afterwards.
+
+    Django connections are per thread, and a worker thread that used the ORM
+    keeps its connection after the task returns. With Django's connection pool
+    enabled (``OPTIONS["pool"]``, on by default in netbox-docker 5.1.2) those
+    connections never return to the pool, so once it is exhausted every other
+    worker waits for ``timeout`` and fails with ``PoolTimeout``. Closing hands a
+    pooled connection back; without a pool it closes a connection that the
+    worker thread would otherwise leave open.
+    """
+    try:
+        return fn(*args, **kwargs)
+    finally:
+        _close_thread_db_connections()
+
+
+def _close_thread_db_connections():
+    try:
+        from django.core.exceptions import ImproperlyConfigured
+        from django.db import connections
+    except ImportError:
+        return
+    try:
+        connections.close_all()
+    except ImproperlyConfigured:
+        # Django is importable but not configured (unit tests outside NetBox).
+        return
 
 
 # Threading limits (configurable via env vars)

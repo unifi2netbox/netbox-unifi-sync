@@ -653,6 +653,29 @@ def _sync_live_readings():
     return os.getenv("SYNC_LIVE_READINGS", "true").strip().lower() not in ("false", "0", "no", "off")
 
 
+def _sync_zabbix_tag():
+    """Whether synced UniFi devices get the ``zabbix`` tag (default: on).
+
+    Some deployments select hosts for Zabbix by this tag. Set
+    SYNC_ZABBIX_TAG=false where nothing uses it; tags already applied stay.
+    """
+    return os.getenv("SYNC_ZABBIX_TAG", "true").strip().lower() not in ("false", "0", "no", "off")
+
+
+def _ensure_zabbix_tag(nb, nb_device, device_name):
+    """Add the ``zabbix`` tag to a synced device unless SYNC_ZABBIX_TAG is off."""
+    if not _sync_zabbix_tag():
+        return
+    zabbix_tag = ensure_tag(nb, "zabbix")
+    if zabbix_tag:
+        current_tags = [t.id for t in (nb_device.tags or [])]
+        if zabbix_tag.id not in current_tags:
+            current_tags.append(zabbix_tag.id)
+            nb_device.tags = current_tags
+            nb_device.save()
+            logger.info(f"Added 'zabbix' tag to device {device_name}.")
+
+
 def sync_device_custom_fields(nb, nb_device, device):
     """Sync firmware version, uptime, MAC, and last seen from UniFi to NetBox custom fields."""
     # Ensure custom fields exist
@@ -3074,15 +3097,7 @@ def process_device(unifi, nb, site, device, nb_ubiquity, tenant, unifi_device_ip
                     return
 
         if nb_device:
-            # Ensure "zabbix" tag is present
-            zabbix_tag = ensure_tag(nb, "zabbix")
-            if zabbix_tag:
-                current_tags = [t.id for t in (nb_device.tags or [])]
-                if zabbix_tag.id not in current_tags:
-                    current_tags.append(zabbix_tag.id)
-                    nb_device.tags = current_tags
-                    nb_device.save()
-                    logger.info(f"Added 'zabbix' tag to device {device_name}.")
+            _ensure_zabbix_tag(nb, nb_device, device_name)
 
             if _sync_option("SYNC_DEVICE_STATUS", default=False):
                 try:

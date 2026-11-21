@@ -4,6 +4,12 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+### Added
+
+- `SYNC_ZABBIX_TAG` worker environment option (default `true`). Set it to
+  `false` to stop the sync adding the `zabbix` tag to UniFi devices where
+  nothing uses it; tags already applied stay.
+
 ## [0.3.27] - 2026-10-31
 
 ### Fixed

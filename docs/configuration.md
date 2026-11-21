@@ -308,6 +308,14 @@ identity, firmware, MAC, IP and SSID information continues to sync. Existing
 custom-field values can remain unchanged; description fields may be rewritten
 without live readings. See [device specs](device-specs.md).
 
+## Advanced: zabbix tag
+
+Every synced UniFi device gets the tag `zabbix`, which some deployments use to
+select hosts for Zabbix. `SYNC_ZABBIX_TAG` is a worker-process environment
+option, default `true`. Set it to `false` in the environment of every process
+that executes sync, then restart workers, to stop adding the tag. Tags already
+applied are not removed; remove them (or the tag) in NetBox if nothing uses them.
+
 MFA seeds and API/password/token fields are redacted from configuration snapshots.
 Restrict controller edit permissions, database backups and secret-file access;
 redaction is not encryption of stored controller values.

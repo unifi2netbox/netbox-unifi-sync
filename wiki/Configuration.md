@@ -73,5 +73,8 @@ readings such as uptime, PoE draw, utilization and client signal/timestamps. It
 has no Settings UI field. Restart workers after changing their environment.
 Runtime/prefix locks are process-local; avoid overlapping independent jobs.
 
+`SYNC_ZABBIX_TAG=false` in the worker environment stops the sync adding the
+`zabbix` tag to UniFi devices (default: on). Existing tags stay.
+
 See [Upgrade](Upgrade) and the
 [full configuration reference](https://github.com/unifi2netbox/netbox-unifi-sync/blob/main/docs/configuration.md).
